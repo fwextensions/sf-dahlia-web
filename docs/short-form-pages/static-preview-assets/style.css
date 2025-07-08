@@ -1,0 +1,31 @@
+@import url("https://housing.sfgov.org/assets/application-758995a47b9b4cf45c0e1a068e2b6b3bc2dd1ec49085dc688e5179c050526cc6.css");
+
+/* Minimal styles to approximate SFDAHLIA short-form cards without requiring the full app CSS */
+html,body{
+	margin:0;
+  padding: 2rem 0;
+	font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+	background:#f6f7f8;
+}
+.app-card{
+	background:#fff;
+	max-width:600px;
+	margin: 0 auto;
+	border-radius:4px;
+	box-shadow:0 1px 4px rgba(0,0,0,0.1);
+	border:1px solid #e0e0e0;
+	overflow:hidden;
+}
+.app-card_header,.app-inner{
+	padding:1.5rem 2rem;
+}
+.app-card_question{
+	font-size:1.5rem;
+	margin:0 0 1rem;
+	color:#333;
+}
+
+/* hide this duplicate header */
+.featured-leader {
+  display: none;
+}

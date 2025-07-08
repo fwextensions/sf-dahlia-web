@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Short-Form Preview Index</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: #f8f8f8;
+    }
+
+    .previews-index {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .previews-index h1 {
+      margin-top: 0;
+      font-size: 3rem;
+    }
+
+    .previews-index h2 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .previews-index a {
+      color: #0074d9;
+      text-decoration: none;
+    }
+
+    .previews-index a:hover {
+      text-decoration: underline;
+    }
+
+    .previews-index ul {
+      list-style: initial;
+      margin: 0;
+      padding-left: 2rem;
+    }
+
+    .previews-index li {
+      margin: 0.5rem 0;
+    }
+
+    .page-block {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin: 4rem 0 2rem;
+      border-top: 1px solid #ccc;
+      padding-top: 2rem;
+      word-break: break-all;
+    }
+
+    .page-block blockquote {
+      margin-left: 0;
+    }
+
+    .page-block h3 {
+      font-size: 1.25rem;
+    }
+
+    .page-info {
+      flex: 1;
+    }
+
+    .page-preview {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+  </style>
+  <script>
+    "use strict";
+    function resizeIframe(iframe) {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (doc && doc.body) {
+          iframe.style.height = doc.body.scrollHeight + "px";
+          doc.body.style.padding = "0";
+          doc.body.style.overflow = "hidden";
+        }
+      } catch (err) {
+        console.warn("Unable to access iframe contents for resizing", err);
+      }
+    }
+
+    function setupIframeResizing() {
+      const iframes = document.querySelectorAll("iframe.page-preview");
+      iframes.forEach((iframe) => {
+        if (iframe.complete) {
+          resizeIframe(iframe);
+        }
+        iframe.addEventListener("load", () => resizeIframe(iframe));
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", setupIframeResizing);
+  </script>
+</head>
+<body>
+<div class="previews-index">
+  {{CONTENT}}
+</div>
+</body>
+</html>
