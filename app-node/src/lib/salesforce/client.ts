@@ -159,22 +159,26 @@ export function createSalesforceProxyClient(): SalesforceProxyClient {
     listings: {
       async getAll(params?: ListingsParams): Promise<Listing[]> {
         const query = params ? buildQuery(params) : ""
-        return proxyFetch<Listing[]>(`/api/v1/listings${query}`)
+        const res = await proxyFetch<{ listings: Listing[] }>(`/api/v1/listings${query}`)
+        return res.listings
       },
 
       async getById(id: string, force?: boolean): Promise<Listing> {
         const query = force ? "?force=true" : ""
-        return proxyFetch<Listing>(`/api/v1/listings/${id}${query}`)
+        const res = await proxyFetch<{ listing: Listing }>(`/api/v1/listings/${id}${query}`)
+        return res.listing
       },
 
       async getUnits(id: string): Promise<Unit[]> {
-        return proxyFetch<Unit[]>(`/api/v1/listings/${id}/units`)
+        const res = await proxyFetch<{ units: Unit[] }>(`/api/v1/listings/${id}/units`)
+        return res.units
       },
 
       async getLotteryBuckets(id: string): Promise<LotteryBucket[]> {
-        return proxyFetch<LotteryBucket[]>(
+        const res = await proxyFetch<{ lotteryBuckets: LotteryBucket[] }>(
           `/api/v1/listings/${id}/lottery_buckets`
         )
+        return res.lotteryBuckets ?? []
       },
 
       async getLotteryRanking(
@@ -182,23 +186,27 @@ export function createSalesforceProxyClient(): SalesforceProxyClient {
         lotteryNumber: string
       ): Promise<LotteryRanking> {
         const query = buildQuery({ lottery_number: lotteryNumber })
+        // Rails returns the raw Salesforce response object directly
         return proxyFetch<LotteryRanking>(
           `/api/v1/listings/${id}/lottery_ranking${query}`
         )
       },
 
       async getPreferences(id: string): Promise<Preference[]> {
-        return proxyFetch<Preference[]>(`/api/v1/listings/${id}/preferences`)
+        const res = await proxyFetch<{ preferences: Preference[] }>(`/api/v1/listings/${id}/preferences`)
+        return res.preferences
       },
 
       async getAmi(params: AmiParams): Promise<AmiLevel[]> {
         const query = buildQuery(params)
-        return proxyFetch<AmiLevel[]>(`/api/v1/listings/ami${query}`)
+        const res = await proxyFetch<{ ami: AmiLevel[] }>(`/api/v1/listings/ami${query}`)
+        return res.ami
       },
 
       async getEligible(filters: EligibilityFilters): Promise<Listing[]> {
         const query = buildQuery(filters)
-        return proxyFetch<Listing[]>(`/api/v1/listings/eligibility${query}`)
+        const res = await proxyFetch<{ listings: Listing[] }>(`/api/v1/listings/eligibility${query}`)
+        return res.listings
       },
     },
 
