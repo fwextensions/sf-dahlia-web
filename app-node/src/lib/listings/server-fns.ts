@@ -150,7 +150,16 @@ async function getServerDeps() {
   const { createSalesforceProxyClient } = await import("../salesforce/client")
   const { withRetry } = await import("../salesforce/retry")
 
-  const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 3 })
+  const redis = new Redis(env.REDIS_URL, {
+    maxRetriesPerRequest: 3,
+    // Limit reconnect attempts so a missing Redis doesn't spam logs
+    retryStrategy: (times) => (times > 3 ? null : Math.min(times * 200, 1000)),
+  })
+  // Attach an error handler so ioredis connection failures don't become
+  // unhandled Node.js error events that crash the process.
+  redis.on("error", (err) => {
+    console.warn("[redis] Connection error (cache unavailable):", err.message)
+  })
   const cacheService = createCacheService(redis)
   const proxyClient = createSalesforceProxyClient()
 
@@ -199,6 +208,9 @@ export const getListings = createServerFn({ method: "GET" })
       )
 
       return { listings, type: data.type }
+    } catch (err) {
+      console.error("[getListings] Failed to fetch listings:", err)
+      throw err
     } finally {
       await redis.quit()
     }

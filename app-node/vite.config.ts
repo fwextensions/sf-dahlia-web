@@ -8,6 +8,18 @@ export default defineConfig({
   server: {
     port: 3001,
   },
+  optimizeDeps: {
+    // These packages use virtual module imports (#tanstack-router-entry,
+    // #tanstack-start-entry, tanstack-start-manifest:v) that are only
+    // resolvable by the TanStack Start Vite plugin at runtime. esbuild
+    // cannot resolve them during pre-bundling, so we exclude them here.
+    exclude: [
+      "@tanstack/start-server-core",
+      "@tanstack/react-start",
+      "@tanstack/react-start/server",
+      "@tanstack/react-start/client",
+    ],
+  },
   plugins: [
     tsconfigPaths(),
     tanstackStart({

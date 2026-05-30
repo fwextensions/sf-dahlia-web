@@ -15,6 +15,11 @@ import { getClientEnvScript } from "../config/clientEnv"
 // ensuring styles are loaded before first paint (CLS < 0.1)
 import "../styles/globals.scss"
 
+// Clerk requires a publishable key. When running locally without one configured,
+// skip the provider entirely so the app still renders for non-auth pages.
+const CLERK_PUBLISHABLE_KEY = process.env.CLERK_PUBLISHABLE_KEY ?? ""
+const clerkEnabled = CLERK_PUBLISHABLE_KEY.startsWith("pk_")
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -65,9 +70,13 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body>
-        <ClerkProvider>
-          {children}
-        </ClerkProvider>
+        {clerkEnabled ? (
+          <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+            {children}
+          </ClerkProvider>
+        ) : (
+          children
+        )}
         <Scripts />
       </body>
     </html>

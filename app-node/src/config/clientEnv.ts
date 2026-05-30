@@ -12,6 +12,7 @@
 
 export interface ClientEnv {
   RAILS_API_BASE_URL: string
+  CLERK_PUBLISHABLE_KEY: string
 }
 
 declare global {
@@ -33,6 +34,7 @@ export function getClientEnv(): ClientEnv {
   // Server-side or fallback
   return {
     RAILS_API_BASE_URL: process.env.RAILS_API_BASE_URL || "http://localhost:3000",
+    CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY || "",
   }
 }
 
@@ -43,6 +45,7 @@ export function getClientEnv(): ClientEnv {
 export function getClientEnvScript(): string {
   const env: ClientEnv = {
     RAILS_API_BASE_URL: process.env.RAILS_API_BASE_URL || "http://localhost:3000",
+    CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY || "",
   }
   return `window.__DAHLIA_ENV__=${JSON.stringify(env)};`
 }

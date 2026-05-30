@@ -23,7 +23,8 @@ export interface RetryConfig {
 
 export const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
-  baseDelayMs: 1000,
+  // Use shorter delays in development so connection failures surface quickly
+  baseDelayMs: process.env.NODE_ENV === "production" ? 1000 : 100,
 }
 
 /**
@@ -138,7 +139,7 @@ export async function withRetry<T>(
 
   // No cache available — throw RetryExhaustedError
   throw new RetryExhaustedError(
-    `All ${config.maxRetries} retry attempts failed for proxy request`,
+    `All ${config.maxRetries} retry attempts failed for proxy request: ${lastError!.message}`,
     lastError!
   )
 }
