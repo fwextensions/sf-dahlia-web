@@ -1,0 +1,77 @@
+{
+  "name": "dahlia-web",
+  "description": "DAHLIA Housing Portal - Node/TS primary web server (TanStack Start)",
+  "keywords": ["node", "tanstack-start", "housing", "dahlia"],
+  "repository": "https://github.com/SFDigitalServices/sf-dahlia-web",
+  "stack": "heroku-24",
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "standard-1x"
+    },
+    "worker": {
+      "quantity": 1,
+      "size": "standard-1x"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-redis:mini",
+      "as": "REDIS"
+    },
+    {
+      "plan": "heroku-postgresql:essential-0",
+      "as": "DATABASE"
+    }
+  ],
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment (production for deployed apps)",
+      "value": "production"
+    },
+    "RAILS_API_BASE_URL": {
+      "description": "Internal URL of the Rails Salesforce proxy Heroku app (e.g., https://dahlia-salesforce-proxy.herokuapp.com)",
+      "required": true
+    },
+    "INTERNAL_API_KEY": {
+      "description": "Shared secret for Node→Rails proxy authentication",
+      "required": true
+    },
+    "CLERK_SECRET_KEY": {
+      "description": "Clerk secret key for server-side auth",
+      "required": true
+    },
+    "CLERK_PUBLISHABLE_KEY": {
+      "description": "Clerk publishable key for client-side auth",
+      "required": true
+    },
+    "DATABASE_URL": {
+      "description": "PostgreSQL connection URL (auto-set by Heroku add-on)",
+      "required": true
+    },
+    "REDIS_URL": {
+      "description": "Redis connection URL (auto-set by Heroku add-on)",
+      "required": true
+    }
+  },
+  "scripts": {
+    "postdeploy": "npm run db:migrate"
+  },
+  "environments": {
+    "production": {
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "staging": {
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

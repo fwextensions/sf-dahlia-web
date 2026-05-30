@@ -1,0 +1,51 @@
+// Prisma schema for the Node/TS DAHLIA application
+// Replaces Rails ActiveRecord models for User and UploadedFile
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String         @id @default(uuid())
+  clerkUserId          String         @unique @map("clerk_user_id")
+  email                String         @unique
+  salesforceContactId  String         @map("salesforce_contact_id")
+  tempSessionId        String?        @map("temp_session_id")
+  confirmedAt          DateTime?      @map("confirmed_at")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+
+  uploadedFiles        UploadedFile[]
+
+  @@map("users")
+}
+
+model UploadedFile {
+  id                  String    @id @default(uuid())
+  userId              String?   @map("user_id")
+  applicationId       String?   @map("application_id")
+  listingId           String    @map("listing_id")
+  listingPreferenceId String    @map("listing_preference_id")
+  documentType        String    @map("document_type")
+  name                String
+  contentType         String    @map("content_type")
+  sessionUid          String    @map("session_uid")
+  address             String?
+  rentBurdenType      String?   @map("rent_burden_type")
+  rentBurdenIndex     Int?      @map("rent_burden_index")
+  deliveredAt         DateTime? @map("delivered_at")
+  error               String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user                User?     @relation(fields: [userId], references: [id])
+
+  @@index([sessionUid], map: "index_uploaded_files_on_session_uid")
+  @@index([userId], map: "index_uploaded_files_on_user_id")
+  @@map("uploaded_files")
+}

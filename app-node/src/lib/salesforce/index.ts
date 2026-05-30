@@ -1,0 +1,5 @@
+export { createSalesforceProxyClient, ProxyClientError } from "./client"
+export type { SalesforceProxyClient } from "./client"
+export { withRetry, RetryExhaustedError, isRetryableError } from "./retry"
+export type { RetryConfig, SleepFn } from "./retry"
+export type * from "./types"

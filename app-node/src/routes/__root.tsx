@@ -1,0 +1,75 @@
+import type { ReactNode } from "react"
+import {
+  Outlet,
+  createRootRoute,
+  HeadContent,
+  Scripts,
+  redirect,
+} from "@tanstack/react-router"
+import { ClerkProvider } from "@clerk/tanstack-react-start"
+import { NotFound } from "../components/NotFound"
+import { evaluateRedirects } from "../lib/routing/redirects"
+import { getClientEnvScript } from "../config/clientEnv"
+
+// Import global styles - Vite injects these as a blocking <link> in <head> during SSR,
+// ensuring styles are loaded before first paint (CLS < 0.1)
+import "../styles/globals.scss"
+
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "DAHLIA San Francisco Housing Portal" },
+    ],
+    scripts: [
+      {
+        children: getClientEnvScript(),
+      },
+    ],
+  }),
+  beforeLoad: async ({ location }) => {
+    // Evaluate redirect rules for ALL incoming URLs (including would-be 404s)
+    const result = await evaluateRedirects(location.pathname)
+    if (result.redirect) {
+      throw redirect({
+        to: result.destination,
+        statusCode: 301,
+      })
+    }
+  },
+  component: RootComponent,
+  notFoundComponent: NotFoundPage,
+})
+
+function RootComponent() {
+  return (
+    <RootDocument>
+      <Outlet />
+    </RootDocument>
+  )
+}
+
+function NotFoundPage() {
+  return (
+    <RootDocument>
+      <NotFound />
+    </RootDocument>
+  )
+}
+
+function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <html lang="en">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <ClerkProvider>
+          {children}
+        </ClerkProvider>
+        <Scripts />
+      </body>
+    </html>
+  )
+}

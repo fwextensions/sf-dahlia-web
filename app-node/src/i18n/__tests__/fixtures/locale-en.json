@@ -1,0 +1,18 @@
+{
+  "en": {
+    "page": {
+      "title": "Welcome",
+      "description": "This is the homepage"
+    },
+    "nav": {
+      "home": "Home",
+      "about": "About"
+    },
+    "greeting": "Hello, {{name}}!",
+    "nested": {
+      "deep": {
+        "key": "Deep value"
+      }
+    }
+  }
+}

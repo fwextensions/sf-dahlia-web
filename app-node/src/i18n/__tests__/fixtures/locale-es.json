@@ -1,0 +1,12 @@
+{
+  "es": {
+    "page": {
+      "title": "Bienvenido",
+      "description": "Esta es la página de inicio"
+    },
+    "nav": {
+      "home": "Inicio"
+    },
+    "greeting": "¡Hola, {{name}}!"
+  }
+}
