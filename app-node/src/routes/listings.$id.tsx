@@ -11,7 +11,7 @@ import {
   getListingPreferences,
 } from "../lib/listings/server-fns"
 import { ErrorPage } from "../components/ErrorPage"
-import type { SerializableUnit, SerializablePreference } from "../lib/listings/server-fns"
+import { ListingDetail } from "../pages/listings/ListingDetail"
 
 export const Route = createFileRoute("/listings/$id")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -27,66 +27,13 @@ export const Route = createFileRoute("/listings/$id")({
 
     return { listing, units, preferences }
   },
-  component: ListingDetail,
+  component: ListingDetailRoute,
   errorComponent: ListingDetailError,
 })
 
-function ListingDetail() {
+function ListingDetailRoute() {
   const { listing, units, preferences } = Route.useLoaderData()
-
-  return (
-    <main role="main" aria-labelledby="listing-detail-title">
-      <h1 id="listing-detail-title">{listing.name}</h1>
-
-      <section aria-labelledby="listing-address-heading">
-        <h2 id="listing-address-heading">Address</h2>
-        <address>
-          {listing.buildingAddress}
-          <br />
-          {listing.buildingCity}, {listing.buildingState} {listing.buildingZip}
-        </address>
-      </section>
-
-      {listing.applicationDueDate && (
-        <p>
-          <strong>Application Due:</strong> {listing.applicationDueDate}
-        </p>
-      )}
-
-      {listing.lotteryDate && (
-        <p>
-          <strong>Lottery Date:</strong> {listing.lotteryDate}
-        </p>
-      )}
-
-      {units.length > 0 && (
-        <section aria-labelledby="units-heading">
-          <h2 id="units-heading">Available Units</h2>
-          <ul aria-label="Unit list">
-            {units.map((unit: SerializableUnit, index: number) => (
-              <li key={index}>
-                {unit.unitType}
-                {unit.numBedrooms != null && ` — ${unit.numBedrooms} BR`}
-                {unit.numBathrooms != null && ` / ${unit.numBathrooms} BA`}
-                {unit.sqFt != null && ` / ${unit.sqFt} sq ft`}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {preferences.length > 0 && (
-        <section aria-labelledby="preferences-heading">
-          <h2 id="preferences-heading">Listing Preferences</h2>
-          <ol aria-label="Preferences">
-            {preferences.map((pref: SerializablePreference) => (
-              <li key={pref.listingPreferenceID}>{pref.preferenceName}</li>
-            ))}
-          </ol>
-        </section>
-      )}
-    </main>
-  )
+  return <ListingDetail listing={listing} units={units} preferences={preferences} />
 }
 
 function ListingDetailError() {

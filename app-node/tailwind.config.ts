@@ -1,52 +1,34 @@
 import type { Config } from "tailwindcss"
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const bloomTheme = require("@bloom-housing/ui-components/tailwind.config.js")
 
+/**
+ * Tailwind config for app-node.
+ *
+ * Extends the Bloom Housing UI component theme so that all Bloom utility
+ * classes (font-alt-sans, text-primary, bg-primary-darker, etc.) are
+ * available. This mirrors how the existing Rails app extends bloomTheme in
+ * tailwind.config.js at the repo root.
+ */
 const config: Config = {
-  content: ["./src/**/*.{ts,tsx}", "./node_modules/@bloom-housing/ui-seeds/src/**/*.{ts,tsx}"],
+  ...bloomTheme,
+  content: [
+    "./src/**/*.{ts,tsx}",
+    "./node_modules/@bloom-housing/ui-components/src/**/*.{ts,tsx}",
+    "./node_modules/@bloom-housing/ui-seeds/src/**/*.{ts,tsx}",
+  ],
   theme: {
+    ...bloomTheme.theme,
     extend: {
-      colors: {
-        // DAHLIA brand colors matching existing design system
-        primary: {
-          DEFAULT: "#0077da",
-          dark: "#005fae",
-          darker: "#003d73",
-          light: "#e6f3ff",
-        },
-        secondary: {
-          DEFAULT: "#0067be",
-          dark: "#005298",
-        },
-        success: "#2e8540",
-        warning: "#fdb81e",
-        alert: "#e31c3d",
-        info: "#a0d3e8",
-        gray: {
-          50: "#f7f7f7",
-          100: "#efefef",
-          200: "#ddd",
-          300: "#ccc",
-          400: "#aaa",
-          500: "#999",
-          600: "#666",
-          700: "#444",
-          800: "#333",
-          900: "#222",
-        },
-      },
+      ...bloomTheme.theme?.extend,
       fontFamily: {
-        sans: ['"Open Sans"', "Helvetica", "Arial", "Verdana", "sans-serif"],
-        serif: ['"Playfair Display"', "serif"],
-        heading: ['"Lato"', "sans-serif"],
-      },
-      fontSize: {
-        base: "16px",
-      },
-      lineHeight: {
-        base: "24px",
+        ...bloomTheme.theme?.fontFamily,
+        // Ensure alt-serif is available for DAHLIA headings
+        "alt-serif": ['"Playfair Display"', "serif"],
       },
     },
   },
-  plugins: [],
+  plugins: bloomTheme.plugins ?? [],
 }
 
 export default config

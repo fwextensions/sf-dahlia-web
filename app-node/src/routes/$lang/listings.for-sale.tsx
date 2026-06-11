@@ -7,7 +7,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { getListings } from "../../lib/listings/server-fns"
 import { ErrorPage } from "../../components/ErrorPage"
-import type { SerializableListing } from "../../lib/listings/server-fns"
+import { SaleDirectory } from "../../pages/listings/SaleDirectory"
 
 export const Route = createFileRoute("/$lang/listings/for-sale")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -19,37 +19,13 @@ export const Route = createFileRoute("/$lang/listings/for-sale")({
       data: { type: "ownership", force: deps.force },
     })
   },
-  component: BuyDirectory,
+  component: BuyDirectoryRoute,
   errorComponent: BuyDirectoryError,
 })
 
-function BuyDirectory() {
+function BuyDirectoryRoute() {
   const { listings } = Route.useLoaderData()
-
-  return (
-    <main role="main" aria-labelledby="buy-directory-title">
-      <h1 id="buy-directory-title">Listings for Sale</h1>
-      <p aria-live="polite">
-        {listings.length} listing{listings.length !== 1 ? "s" : ""} available
-      </p>
-      <ul aria-label="Ownership listings">
-        {listings.map((listing: SerializableListing) => (
-          <li key={listing.listingID}>
-            <a href={`/listings/${listing.listingID}`}>
-              <h2>{listing.name}</h2>
-              <p>
-                {listing.buildingAddress}, {listing.buildingCity},{" "}
-                {listing.buildingState} {listing.buildingZip}
-              </p>
-              {listing.applicationDueDate && (
-                <p>Apply by: {listing.applicationDueDate}</p>
-              )}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </main>
-  )
+  return <SaleDirectory listings={listings} />
 }
 
 function BuyDirectoryError() {
