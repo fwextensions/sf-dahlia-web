@@ -8,18 +8,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /**
  * Tailwind (v4 compat-mode) config for app-node.
  *
- * Loads the local ui-components fork's tailwind.config.js (v4-ready: CSS
- * variable theme values, flattened callbacks) and layers DAHLIA's overrides
- * on top, mirroring the repo-root tailwind.config.js used by the Rails
- * webpack build. Referenced via @config (injected in postcss.config.js).
- *
- * The fork location can be overridden with UI_COMPONENTS_DIR.
+ * Loads the ui-components fork's tailwind.config.js (v4-ready: CSS variable
+ * theme values, flattened callbacks; installed from
+ * github:fwextensions/ui-components) and layers DAHLIA's overrides on top,
+ * mirroring the repo-root tailwind.config.js used by the Rails webpack
+ * build. Referenced via @config (injected in postcss.config.js).
  */
-const uiComponentsDir =
-  process.env.UI_COMPONENTS_DIR ?? path.resolve(__dirname, "..", "..", "ui-components")
-
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const bloomTheme = require(path.join(uiComponentsDir, "tailwind.config.js"))
+const bloomTheme = require("@bloom-housing/ui-components/tailwind.config.js")
+const uiComponentsDir = path.dirname(
+  require.resolve("@bloom-housing/ui-components", { paths: [__dirname] })
+)
 
 const config = {
   ...bloomTheme,

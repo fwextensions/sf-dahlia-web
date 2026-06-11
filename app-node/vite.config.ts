@@ -4,8 +4,20 @@ import viteReact from "@vitejs/plugin-react"
 import tsconfigPaths from "vite-tsconfig-paths"
 import path from "node:path"
 import fs from "node:fs"
+import { createRequire } from "node:module"
+
+const require = createRequire(import.meta.url)
 
 const repoRoot = path.resolve(__dirname, "..")
+
+// Root of the installed @bloom-housing/ui-components package (the
+// fwextensions fork, installed from GitHub — see package.json). Resolved
+// dynamically so no machine-specific paths live in the repo. We alias
+// subpath imports through this because the package's `exports` map only
+// exposes a handful of files, while app/javascript imports many src/** paths.
+const bloomUiDir = path.dirname(
+  require.resolve("@bloom-housing/ui-components", { paths: [__dirname] })
+)
 
 /**
  * Read selected variables from the repo-root .env (where the Rails frontend
@@ -84,7 +96,9 @@ function bloomTailwindShimPlugin(): Plugin {
   return {
     name: "bloom-tailwind-shim",
     load(id) {
-      const normalized = id.replace(/\\/g, "/")
+      // Strip any query suffix (e.g. ?v=hash on files inside node_modules)
+      // so the suffix matching below works.
+      const normalized = id.replace(/\\/g, "/").split("?")[0]
       // DAHLIA's base.scss carries Tailwind v3 `@tailwind` directives for the
       // Rails webpack build. app-node uses Tailwind v4 (preflight + utilities
       // come from src/styles/tailwind.css), so strip the directives here
@@ -95,9 +109,7 @@ function bloomTailwindShimPlugin(): Plugin {
       }
       if (
         id.endsWith(BLOOM_TAILWIND_SUFFIX) ||
-        normalized.endsWith("@bloom-housing/ui-components/tailwind.config.js") ||
-        // Local ui-components fork checkout (aliased below)
-        normalized.endsWith("/ui-components/tailwind.config.js")
+        normalized.endsWith("@bloom-housing/ui-components/tailwind.config.js")
       ) {
         return `
 export const theme = {
@@ -135,8 +147,8 @@ export default defineConfig({
     },
     fs: {
       // Allow serving files from the Rails repo root (app/javascript,
-      // app/assets) and the local ui-components checkout.
-      allow: [__dirname, repoRoot, path.resolve(repoRoot, "..", "ui-components")],
+      // app/assets) as well as app-node itself.
+      allow: [__dirname, repoRoot],
     },
   },
   optimizeDeps: {
@@ -153,10 +165,31 @@ export default defineConfig({
       // Vite) — esbuild prebundling can't process its .scss imports.
       "@bloom-housing/ui-components",
     ],
-    // react-dropzone ships as CJS. Force Vite to pre-bundle it so named
-    // imports like `useDropzone` work correctly in ESM context.
-    // It's pulled in transitively via @bloom-housing/ui-components → Dropzone.
-    include: ["react-dropzone"],
+    // Because @bloom-housing/ui-components is excluded (compiled from
+    // source), Vite doesn't automatically pre-bundle its dependencies.
+    // Include all of its runtime deps (plus key transitive CJS deps) so
+    // default/named imports get ESM interop.
+    include: [
+      ...Object.keys(
+        JSON.parse(fs.readFileSync(path.join(bloomUiDir, "package.json"), "utf8"))
+          .dependencies ?? {}
+      ).filter(
+        (dep) =>
+          ![
+            "react",
+            "react-dom",
+            "tailwindcss",
+            "@tailwindcss/postcss",
+            // Pure ESM with subpath exports — pre-bundling the bare entry
+            // triggers an endless re-optimization loop on the subpaths.
+            "@dnd-kit/react",
+          ].includes(dep)
+      ),
+      "prop-types",
+      "react-dropzone",
+      // CJS subpath used by the fork's ContactAddress.tsx
+      "react-dom/server",
+    ],
   },
   plugins: [
     bloomTailwindShimPlugin(),
@@ -197,16 +230,17 @@ export default defineConfig({
         find: /[/\\]@bloom-housing[/\\]ui-components[/\\]tailwind\.config\.js$/,
         replacement: path.resolve(__dirname, "src/lib/shims/bloom-tailwind-config.ts"),
       },
-      // Use the local ui-components fork (updated deps, Tailwind v4-ready
-      // SCSS) instead of the npm package. Matches both the bare import and
-      // subpath imports like @bloom-housing/ui-components/src/global/....
+      // The ui-components fork (installed from GitHub) compiles from TS/SCSS
+      // source. Route subpath imports (e.g. .../src/global/forms.scss) through
+      // the package directory directly, since its `exports` map only exposes
+      // a handful of entry points.
       {
         find: /^@bloom-housing\/ui-components$/,
-        replacement: path.resolve(repoRoot, "..", "ui-components", "index.ts"),
+        replacement: path.join(bloomUiDir, "index.ts"),
       },
       {
         find: /^@bloom-housing\/ui-components\//,
-        replacement: path.resolve(repoRoot, "..", "ui-components") + "/",
+        replacement: bloomUiDir + "/",
       },
       // react-dropzone v11 ships CJS as its main entry and ESM under dist/es/.
       // The SSR module runner picks up the CJS build and fails on named imports.
@@ -229,7 +263,7 @@ export default defineConfig({
         // Sass dedupes repeat loads of the same canonical file, so this is
         // safe even for fork files that already @use it themselves.
         additionalData: `@use "${path
-          .resolve(repoRoot, "..", "ui-components", "src/global/tailwind-variables.scss")
+          .join(bloomUiDir, "src/global/tailwind-variables.scss")
           .replace(/\\/g, "/")}" as *;\n`,
       },
     },
