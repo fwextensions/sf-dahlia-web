@@ -13,6 +13,27 @@
  */
 
 export const theme = {
+  // Gray scale from @bloom-housing/ui-components/tailwind.config.js, used by
+  // pages that read theme colors at runtime (e.g. get-assistance.tsx icons).
+  colors: {
+    gray: {
+      100: "#f9f9f9",
+      200: "#f7f7f7",
+      300: "#f6f6f6",
+      400: "#efefef",
+      450: "#dedee0",
+      500: "#cccccc",
+      550: "#aaaaaa",
+      600: "#999999",
+      650: "#888888",
+      700: "#767676",
+      750: "#555555",
+      800: "#373737",
+      850: "#333333",
+      900: "#292929",
+      950: "#222222",
+    },
+  },
   screens: {
     sm: "640px",
     md: "768px",

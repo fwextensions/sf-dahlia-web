@@ -1,21 +1,18 @@
 /**
- * Privacy Policy page route: /privacy
+ * Bridges to the original Rails react-on-rails page component in
+ * app/javascript. The page is mounted client-side after translations load
+ * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
  */
 import { createFileRoute } from "@tanstack/react-router"
-import { Privacy } from "../pages/Privacy"
-import { loadPageTranslations } from "../lib/routing/createPageLoader"
+import { RailsPage } from "../components/RailsPage"
+
+const load = () => import("../../../app/javascript/pages/getAssistance/privacy")
 
 export const Route = createFileRoute("/privacy")({
-  loader: () => loadPageTranslations(),
-  component: PrivacyRoute,
+  ssr: false,
+  component: PageRoute,
 })
 
-function PrivacyRoute() {
-  const { translations, fallbackTranslations } = Route.useLoaderData()
-  return (
-    <Privacy
-      translations={translations}
-      fallbackTranslations={fallbackTranslations}
-    />
-  )
+function PageRoute() {
+  return <RailsPage load={load} />
 }

@@ -1,18 +1,18 @@
+/**
+ * Bridges to the original Rails react-on-rails page component in
+ * app/javascript. The page is mounted client-side after translations load
+ * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
+ */
 import { createFileRoute } from "@tanstack/react-router"
-import { SignUp } from "@clerk/tanstack-react-start"
+import { RailsPage } from "../components/RailsPage"
+
+const load = () => import("../../../app/javascript/pages/account/create-account")
 
 export const Route = createFileRoute("/create-account")({
-  component: CreateAccountPage,
+  ssr: false,
+  component: PageRoute,
 })
 
-function CreateAccountPage() {
-  return (
-    <main>
-      <h1>Create Account</h1>
-      <SignUp
-        signInUrl="/sign-in"
-        fallbackRedirectUrl="/"
-      />
-    </main>
-  )
+function PageRoute() {
+  return <RailsPage load={load} />
 }

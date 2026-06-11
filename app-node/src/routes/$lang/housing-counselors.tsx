@@ -1,21 +1,18 @@
 /**
- * Language-prefixed Housing Counselors page route: /:lang/housing-counselors
+ * Bridges to the original Rails react-on-rails page component in
+ * app/javascript. The page is mounted client-side after translations load
+ * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
  */
 import { createFileRoute } from "@tanstack/react-router"
-import { HousingCounselors } from "../../pages/HousingCounselors"
-import { loadPageTranslations } from "../../lib/routing/createPageLoader"
+import { RailsPage } from "../../components/RailsPage"
+
+const load = () => import("../../../../app/javascript/pages/getAssistance/housing-counselors")
 
 export const Route = createFileRoute("/$lang/housing-counselors")({
-  loader: ({ params }) => loadPageTranslations(params.lang),
-  component: HousingCounselorsRoute,
+  ssr: false,
+  component: PageRoute,
 })
 
-function HousingCounselorsRoute() {
-  const { translations, fallbackTranslations } = Route.useLoaderData()
-  return (
-    <HousingCounselors
-      translations={translations}
-      fallbackTranslations={fallbackTranslations}
-    />
-  )
+function PageRoute() {
+  return <RailsPage load={load} />
 }

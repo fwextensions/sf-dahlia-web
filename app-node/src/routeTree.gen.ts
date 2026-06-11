@@ -28,8 +28,8 @@ import { Route as LangIndexRouteImport } from './routes/$lang/index'
 import { Route as ListingsForSaleRouteImport } from './routes/listings.for-sale'
 import { Route as ListingsForRentRouteImport } from './routes/listings.for-rent'
 import { Route as ListingsIdRouteImport } from './routes/listings.$id'
-import { Route as AccountSettingsRouteImport } from './routes/account.settings'
-import { Route as AccountApplicationsRouteImport } from './routes/account.applications'
+import { Route as AccountSettingsRouteImport } from './routes/account_.settings'
+import { Route as AccountApplicationsRouteImport } from './routes/account_.applications'
 import { Route as LangSignInRouteImport } from './routes/$lang/sign-in'
 import { Route as LangResetPasswordRouteImport } from './routes/$lang/reset-password'
 import { Route as LangPrivacyRouteImport } from './routes/$lang/privacy'
@@ -43,17 +43,17 @@ import { Route as LangDisclaimerRouteImport } from './routes/$lang/disclaimer'
 import { Route as LangCreateAccountRouteImport } from './routes/$lang/create-account'
 import { Route as LangAdditionalResourcesRouteImport } from './routes/$lang/additional-resources'
 import { Route as LangAccountRouteImport } from './routes/$lang/account'
+import { Route as ListingsIdHowToApplyRouteImport } from './routes/listings_.$id.how-to-apply'
 import { Route as ListingsIdNextStepsRouteImport } from './routes/listings.$id.next-steps'
-import { Route as ListingsIdHowToApplyRouteImport } from './routes/listings.$id.how-to-apply'
 import { Route as LangListingsForSaleRouteImport } from './routes/$lang/listings.for-sale'
 import { Route as LangListingsForRentRouteImport } from './routes/$lang/listings.for-rent'
 import { Route as LangListingsIdRouteImport } from './routes/$lang/listings.$id'
-import { Route as LangAccountSettingsRouteImport } from './routes/$lang/account.settings'
-import { Route as LangAccountApplicationsRouteImport } from './routes/$lang/account.applications'
+import { Route as LangAccountSettingsRouteImport } from './routes/$lang/account_.settings'
+import { Route as LangAccountApplicationsRouteImport } from './routes/$lang/account_.applications'
 import { Route as ListingsIdNextStepsDocumentsRouteImport } from './routes/listings.$id.next-steps.documents'
 import { Route as ListingsIdApplyIntroRouteImport } from './routes/listings.$id.apply.intro'
+import { Route as LangListingsIdHowToApplyRouteImport } from './routes/$lang/listings_.$id.how-to-apply'
 import { Route as LangListingsIdNextStepsRouteImport } from './routes/$lang/listings.$id.next-steps'
-import { Route as LangListingsIdHowToApplyRouteImport } from './routes/$lang/listings.$id.how-to-apply'
 import { Route as LangListingsIdNextStepsDocumentsRouteImport } from './routes/$lang/listings.$id.next-steps.documents'
 import { Route as LangListingsIdApplyIntroRouteImport } from './routes/$lang/listings.$id.apply.intro'
 
@@ -153,14 +153,14 @@ const ListingsIdRoute = ListingsIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountSettingsRoute = AccountSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AccountRoute,
+  id: '/account_/settings',
+  path: '/account/settings',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AccountApplicationsRoute = AccountApplicationsRouteImport.update({
-  id: '/applications',
-  path: '/applications',
-  getParentRoute: () => AccountRoute,
+  id: '/account_/applications',
+  path: '/account/applications',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LangSignInRoute = LangSignInRouteImport.update({
   id: '/sign-in',
@@ -227,14 +227,14 @@ const LangAccountRoute = LangAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => LangRoute,
 } as any)
+const ListingsIdHowToApplyRoute = ListingsIdHowToApplyRouteImport.update({
+  id: '/listings_/$id/how-to-apply',
+  path: '/listings/$id/how-to-apply',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ListingsIdNextStepsRoute = ListingsIdNextStepsRouteImport.update({
   id: '/next-steps',
   path: '/next-steps',
-  getParentRoute: () => ListingsIdRoute,
-} as any)
-const ListingsIdHowToApplyRoute = ListingsIdHowToApplyRouteImport.update({
-  id: '/how-to-apply',
-  path: '/how-to-apply',
   getParentRoute: () => ListingsIdRoute,
 } as any)
 const LangListingsForSaleRoute = LangListingsForSaleRouteImport.update({
@@ -253,14 +253,14 @@ const LangListingsIdRoute = LangListingsIdRouteImport.update({
   getParentRoute: () => LangRoute,
 } as any)
 const LangAccountSettingsRoute = LangAccountSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => LangAccountRoute,
+  id: '/account_/settings',
+  path: '/account/settings',
+  getParentRoute: () => LangRoute,
 } as any)
 const LangAccountApplicationsRoute = LangAccountApplicationsRouteImport.update({
-  id: '/applications',
-  path: '/applications',
-  getParentRoute: () => LangAccountRoute,
+  id: '/account_/applications',
+  path: '/account/applications',
+  getParentRoute: () => LangRoute,
 } as any)
 const ListingsIdNextStepsDocumentsRoute =
   ListingsIdNextStepsDocumentsRouteImport.update({
@@ -273,17 +273,17 @@ const ListingsIdApplyIntroRoute = ListingsIdApplyIntroRouteImport.update({
   path: '/apply/intro',
   getParentRoute: () => ListingsIdRoute,
 } as any)
+const LangListingsIdHowToApplyRoute =
+  LangListingsIdHowToApplyRouteImport.update({
+    id: '/listings_/$id/how-to-apply',
+    path: '/listings/$id/how-to-apply',
+    getParentRoute: () => LangRoute,
+  } as any)
 const LangListingsIdNextStepsRoute = LangListingsIdNextStepsRouteImport.update({
   id: '/next-steps',
   path: '/next-steps',
   getParentRoute: () => LangListingsIdRoute,
 } as any)
-const LangListingsIdHowToApplyRoute =
-  LangListingsIdHowToApplyRouteImport.update({
-    id: '/how-to-apply',
-    path: '/how-to-apply',
-    getParentRoute: () => LangListingsIdRoute,
-  } as any)
 const LangListingsIdNextStepsDocumentsRoute =
   LangListingsIdNextStepsDocumentsRouteImport.update({
     id: '/documents',
@@ -300,7 +300,7 @@ const LangListingsIdApplyIntroRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$lang': typeof LangRouteWithChildren
-  '/account': typeof AccountRouteWithChildren
+  '/account': typeof AccountRoute
   '/additional-resources': typeof AdditionalResourcesRoute
   '/create-account': typeof CreateAccountRoute
   '/disclaimer': typeof DisclaimerRoute
@@ -313,7 +313,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
-  '/$lang/account': typeof LangAccountRouteWithChildren
+  '/$lang/account': typeof LangAccountRoute
   '/$lang/additional-resources': typeof LangAdditionalResourcesRoute
   '/$lang/create-account': typeof LangCreateAccountRoute
   '/$lang/disclaimer': typeof LangDisclaimerRoute
@@ -337,10 +337,10 @@ export interface FileRoutesByFullPath {
   '/$lang/listings/$id': typeof LangListingsIdRouteWithChildren
   '/$lang/listings/for-rent': typeof LangListingsForRentRoute
   '/$lang/listings/for-sale': typeof LangListingsForSaleRoute
-  '/listings/$id/how-to-apply': typeof ListingsIdHowToApplyRoute
   '/listings/$id/next-steps': typeof ListingsIdNextStepsRouteWithChildren
-  '/$lang/listings/$id/how-to-apply': typeof LangListingsIdHowToApplyRoute
+  '/listings/$id/how-to-apply': typeof ListingsIdHowToApplyRoute
   '/$lang/listings/$id/next-steps': typeof LangListingsIdNextStepsRouteWithChildren
+  '/$lang/listings/$id/how-to-apply': typeof LangListingsIdHowToApplyRoute
   '/listings/$id/apply/intro': typeof ListingsIdApplyIntroRoute
   '/listings/$id/next-steps/documents': typeof ListingsIdNextStepsDocumentsRoute
   '/$lang/listings/$id/apply/intro': typeof LangListingsIdApplyIntroRoute
@@ -348,7 +348,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/account': typeof AccountRouteWithChildren
+  '/account': typeof AccountRoute
   '/additional-resources': typeof AdditionalResourcesRoute
   '/create-account': typeof CreateAccountRoute
   '/disclaimer': typeof DisclaimerRoute
@@ -361,7 +361,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
-  '/$lang/account': typeof LangAccountRouteWithChildren
+  '/$lang/account': typeof LangAccountRoute
   '/$lang/additional-resources': typeof LangAdditionalResourcesRoute
   '/$lang/create-account': typeof LangCreateAccountRoute
   '/$lang/disclaimer': typeof LangDisclaimerRoute
@@ -385,10 +385,10 @@ export interface FileRoutesByTo {
   '/$lang/listings/$id': typeof LangListingsIdRouteWithChildren
   '/$lang/listings/for-rent': typeof LangListingsForRentRoute
   '/$lang/listings/for-sale': typeof LangListingsForSaleRoute
-  '/listings/$id/how-to-apply': typeof ListingsIdHowToApplyRoute
   '/listings/$id/next-steps': typeof ListingsIdNextStepsRouteWithChildren
-  '/$lang/listings/$id/how-to-apply': typeof LangListingsIdHowToApplyRoute
+  '/listings/$id/how-to-apply': typeof ListingsIdHowToApplyRoute
   '/$lang/listings/$id/next-steps': typeof LangListingsIdNextStepsRouteWithChildren
+  '/$lang/listings/$id/how-to-apply': typeof LangListingsIdHowToApplyRoute
   '/listings/$id/apply/intro': typeof ListingsIdApplyIntroRoute
   '/listings/$id/next-steps/documents': typeof ListingsIdNextStepsDocumentsRoute
   '/$lang/listings/$id/apply/intro': typeof LangListingsIdApplyIntroRoute
@@ -398,7 +398,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$lang': typeof LangRouteWithChildren
-  '/account': typeof AccountRouteWithChildren
+  '/account': typeof AccountRoute
   '/additional-resources': typeof AdditionalResourcesRoute
   '/create-account': typeof CreateAccountRoute
   '/disclaimer': typeof DisclaimerRoute
@@ -411,7 +411,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
-  '/$lang/account': typeof LangAccountRouteWithChildren
+  '/$lang/account': typeof LangAccountRoute
   '/$lang/additional-resources': typeof LangAdditionalResourcesRoute
   '/$lang/create-account': typeof LangCreateAccountRoute
   '/$lang/disclaimer': typeof LangDisclaimerRoute
@@ -424,21 +424,21 @@ export interface FileRoutesById {
   '/$lang/privacy': typeof LangPrivacyRoute
   '/$lang/reset-password': typeof LangResetPasswordRoute
   '/$lang/sign-in': typeof LangSignInRoute
-  '/account/applications': typeof AccountApplicationsRoute
-  '/account/settings': typeof AccountSettingsRoute
+  '/account_/applications': typeof AccountApplicationsRoute
+  '/account_/settings': typeof AccountSettingsRoute
   '/listings/$id': typeof ListingsIdRouteWithChildren
   '/listings/for-rent': typeof ListingsForRentRoute
   '/listings/for-sale': typeof ListingsForSaleRoute
   '/$lang/': typeof LangIndexRoute
-  '/$lang/account/applications': typeof LangAccountApplicationsRoute
-  '/$lang/account/settings': typeof LangAccountSettingsRoute
+  '/$lang/account_/applications': typeof LangAccountApplicationsRoute
+  '/$lang/account_/settings': typeof LangAccountSettingsRoute
   '/$lang/listings/$id': typeof LangListingsIdRouteWithChildren
   '/$lang/listings/for-rent': typeof LangListingsForRentRoute
   '/$lang/listings/for-sale': typeof LangListingsForSaleRoute
-  '/listings/$id/how-to-apply': typeof ListingsIdHowToApplyRoute
   '/listings/$id/next-steps': typeof ListingsIdNextStepsRouteWithChildren
-  '/$lang/listings/$id/how-to-apply': typeof LangListingsIdHowToApplyRoute
+  '/listings_/$id/how-to-apply': typeof ListingsIdHowToApplyRoute
   '/$lang/listings/$id/next-steps': typeof LangListingsIdNextStepsRouteWithChildren
+  '/$lang/listings_/$id/how-to-apply': typeof LangListingsIdHowToApplyRoute
   '/listings/$id/apply/intro': typeof ListingsIdApplyIntroRoute
   '/listings/$id/next-steps/documents': typeof ListingsIdNextStepsDocumentsRoute
   '/$lang/listings/$id/apply/intro': typeof LangListingsIdApplyIntroRoute
@@ -486,10 +486,10 @@ export interface FileRouteTypes {
     | '/$lang/listings/$id'
     | '/$lang/listings/for-rent'
     | '/$lang/listings/for-sale'
-    | '/listings/$id/how-to-apply'
     | '/listings/$id/next-steps'
-    | '/$lang/listings/$id/how-to-apply'
+    | '/listings/$id/how-to-apply'
     | '/$lang/listings/$id/next-steps'
+    | '/$lang/listings/$id/how-to-apply'
     | '/listings/$id/apply/intro'
     | '/listings/$id/next-steps/documents'
     | '/$lang/listings/$id/apply/intro'
@@ -534,10 +534,10 @@ export interface FileRouteTypes {
     | '/$lang/listings/$id'
     | '/$lang/listings/for-rent'
     | '/$lang/listings/for-sale'
-    | '/listings/$id/how-to-apply'
     | '/listings/$id/next-steps'
-    | '/$lang/listings/$id/how-to-apply'
+    | '/listings/$id/how-to-apply'
     | '/$lang/listings/$id/next-steps'
+    | '/$lang/listings/$id/how-to-apply'
     | '/listings/$id/apply/intro'
     | '/listings/$id/next-steps/documents'
     | '/$lang/listings/$id/apply/intro'
@@ -572,21 +572,21 @@ export interface FileRouteTypes {
     | '/$lang/privacy'
     | '/$lang/reset-password'
     | '/$lang/sign-in'
-    | '/account/applications'
-    | '/account/settings'
+    | '/account_/applications'
+    | '/account_/settings'
     | '/listings/$id'
     | '/listings/for-rent'
     | '/listings/for-sale'
     | '/$lang/'
-    | '/$lang/account/applications'
-    | '/$lang/account/settings'
+    | '/$lang/account_/applications'
+    | '/$lang/account_/settings'
     | '/$lang/listings/$id'
     | '/$lang/listings/for-rent'
     | '/$lang/listings/for-sale'
-    | '/listings/$id/how-to-apply'
     | '/listings/$id/next-steps'
-    | '/$lang/listings/$id/how-to-apply'
+    | '/listings_/$id/how-to-apply'
     | '/$lang/listings/$id/next-steps'
+    | '/$lang/listings_/$id/how-to-apply'
     | '/listings/$id/apply/intro'
     | '/listings/$id/next-steps/documents'
     | '/$lang/listings/$id/apply/intro'
@@ -596,7 +596,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LangRoute: typeof LangRouteWithChildren
-  AccountRoute: typeof AccountRouteWithChildren
+  AccountRoute: typeof AccountRoute
   AdditionalResourcesRoute: typeof AdditionalResourcesRoute
   CreateAccountRoute: typeof CreateAccountRoute
   DisclaimerRoute: typeof DisclaimerRoute
@@ -609,9 +609,12 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignInRoute: typeof SignInRoute
+  AccountApplicationsRoute: typeof AccountApplicationsRoute
+  AccountSettingsRoute: typeof AccountSettingsRoute
   ListingsIdRoute: typeof ListingsIdRouteWithChildren
   ListingsForRentRoute: typeof ListingsForRentRoute
   ListingsForSaleRoute: typeof ListingsForSaleRoute
+  ListingsIdHowToApplyRoute: typeof ListingsIdHowToApplyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -749,19 +752,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ListingsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/account/settings': {
-      id: '/account/settings'
-      path: '/settings'
+    '/account_/settings': {
+      id: '/account_/settings'
+      path: '/account/settings'
       fullPath: '/account/settings'
       preLoaderRoute: typeof AccountSettingsRouteImport
-      parentRoute: typeof AccountRoute
+      parentRoute: typeof rootRouteImport
     }
-    '/account/applications': {
-      id: '/account/applications'
-      path: '/applications'
+    '/account_/applications': {
+      id: '/account_/applications'
+      path: '/account/applications'
       fullPath: '/account/applications'
       preLoaderRoute: typeof AccountApplicationsRouteImport
-      parentRoute: typeof AccountRoute
+      parentRoute: typeof rootRouteImport
     }
     '/$lang/sign-in': {
       id: '/$lang/sign-in'
@@ -854,18 +857,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LangAccountRouteImport
       parentRoute: typeof LangRoute
     }
+    '/listings_/$id/how-to-apply': {
+      id: '/listings_/$id/how-to-apply'
+      path: '/listings/$id/how-to-apply'
+      fullPath: '/listings/$id/how-to-apply'
+      preLoaderRoute: typeof ListingsIdHowToApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/listings/$id/next-steps': {
       id: '/listings/$id/next-steps'
       path: '/next-steps'
       fullPath: '/listings/$id/next-steps'
       preLoaderRoute: typeof ListingsIdNextStepsRouteImport
-      parentRoute: typeof ListingsIdRoute
-    }
-    '/listings/$id/how-to-apply': {
-      id: '/listings/$id/how-to-apply'
-      path: '/how-to-apply'
-      fullPath: '/listings/$id/how-to-apply'
-      preLoaderRoute: typeof ListingsIdHowToApplyRouteImport
       parentRoute: typeof ListingsIdRoute
     }
     '/$lang/listings/for-sale': {
@@ -889,19 +892,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LangListingsIdRouteImport
       parentRoute: typeof LangRoute
     }
-    '/$lang/account/settings': {
-      id: '/$lang/account/settings'
-      path: '/settings'
+    '/$lang/account_/settings': {
+      id: '/$lang/account_/settings'
+      path: '/account/settings'
       fullPath: '/$lang/account/settings'
       preLoaderRoute: typeof LangAccountSettingsRouteImport
-      parentRoute: typeof LangAccountRoute
+      parentRoute: typeof LangRoute
     }
-    '/$lang/account/applications': {
-      id: '/$lang/account/applications'
-      path: '/applications'
+    '/$lang/account_/applications': {
+      id: '/$lang/account_/applications'
+      path: '/account/applications'
       fullPath: '/$lang/account/applications'
       preLoaderRoute: typeof LangAccountApplicationsRouteImport
-      parentRoute: typeof LangAccountRoute
+      parentRoute: typeof LangRoute
     }
     '/listings/$id/next-steps/documents': {
       id: '/listings/$id/next-steps/documents'
@@ -917,18 +920,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ListingsIdApplyIntroRouteImport
       parentRoute: typeof ListingsIdRoute
     }
+    '/$lang/listings_/$id/how-to-apply': {
+      id: '/$lang/listings_/$id/how-to-apply'
+      path: '/listings/$id/how-to-apply'
+      fullPath: '/$lang/listings/$id/how-to-apply'
+      preLoaderRoute: typeof LangListingsIdHowToApplyRouteImport
+      parentRoute: typeof LangRoute
+    }
     '/$lang/listings/$id/next-steps': {
       id: '/$lang/listings/$id/next-steps'
       path: '/next-steps'
       fullPath: '/$lang/listings/$id/next-steps'
       preLoaderRoute: typeof LangListingsIdNextStepsRouteImport
-      parentRoute: typeof LangListingsIdRoute
-    }
-    '/$lang/listings/$id/how-to-apply': {
-      id: '/$lang/listings/$id/how-to-apply'
-      path: '/how-to-apply'
-      fullPath: '/$lang/listings/$id/how-to-apply'
-      preLoaderRoute: typeof LangListingsIdHowToApplyRouteImport
       parentRoute: typeof LangListingsIdRoute
     }
     '/$lang/listings/$id/next-steps/documents': {
@@ -948,20 +951,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface LangAccountRouteChildren {
-  LangAccountApplicationsRoute: typeof LangAccountApplicationsRoute
-  LangAccountSettingsRoute: typeof LangAccountSettingsRoute
-}
-
-const LangAccountRouteChildren: LangAccountRouteChildren = {
-  LangAccountApplicationsRoute: LangAccountApplicationsRoute,
-  LangAccountSettingsRoute: LangAccountSettingsRoute,
-}
-
-const LangAccountRouteWithChildren = LangAccountRoute._addFileChildren(
-  LangAccountRouteChildren,
-)
-
 interface LangListingsIdNextStepsRouteChildren {
   LangListingsIdNextStepsDocumentsRoute: typeof LangListingsIdNextStepsDocumentsRoute
 }
@@ -978,13 +967,11 @@ const LangListingsIdNextStepsRouteWithChildren =
   )
 
 interface LangListingsIdRouteChildren {
-  LangListingsIdHowToApplyRoute: typeof LangListingsIdHowToApplyRoute
   LangListingsIdNextStepsRoute: typeof LangListingsIdNextStepsRouteWithChildren
   LangListingsIdApplyIntroRoute: typeof LangListingsIdApplyIntroRoute
 }
 
 const LangListingsIdRouteChildren: LangListingsIdRouteChildren = {
-  LangListingsIdHowToApplyRoute: LangListingsIdHowToApplyRoute,
   LangListingsIdNextStepsRoute: LangListingsIdNextStepsRouteWithChildren,
   LangListingsIdApplyIntroRoute: LangListingsIdApplyIntroRoute,
 }
@@ -994,7 +981,7 @@ const LangListingsIdRouteWithChildren = LangListingsIdRoute._addFileChildren(
 )
 
 interface LangRouteChildren {
-  LangAccountRoute: typeof LangAccountRouteWithChildren
+  LangAccountRoute: typeof LangAccountRoute
   LangAdditionalResourcesRoute: typeof LangAdditionalResourcesRoute
   LangCreateAccountRoute: typeof LangCreateAccountRoute
   LangDisclaimerRoute: typeof LangDisclaimerRoute
@@ -1008,13 +995,16 @@ interface LangRouteChildren {
   LangResetPasswordRoute: typeof LangResetPasswordRoute
   LangSignInRoute: typeof LangSignInRoute
   LangIndexRoute: typeof LangIndexRoute
+  LangAccountApplicationsRoute: typeof LangAccountApplicationsRoute
+  LangAccountSettingsRoute: typeof LangAccountSettingsRoute
   LangListingsIdRoute: typeof LangListingsIdRouteWithChildren
   LangListingsForRentRoute: typeof LangListingsForRentRoute
   LangListingsForSaleRoute: typeof LangListingsForSaleRoute
+  LangListingsIdHowToApplyRoute: typeof LangListingsIdHowToApplyRoute
 }
 
 const LangRouteChildren: LangRouteChildren = {
-  LangAccountRoute: LangAccountRouteWithChildren,
+  LangAccountRoute: LangAccountRoute,
   LangAdditionalResourcesRoute: LangAdditionalResourcesRoute,
   LangCreateAccountRoute: LangCreateAccountRoute,
   LangDisclaimerRoute: LangDisclaimerRoute,
@@ -1028,25 +1018,15 @@ const LangRouteChildren: LangRouteChildren = {
   LangResetPasswordRoute: LangResetPasswordRoute,
   LangSignInRoute: LangSignInRoute,
   LangIndexRoute: LangIndexRoute,
+  LangAccountApplicationsRoute: LangAccountApplicationsRoute,
+  LangAccountSettingsRoute: LangAccountSettingsRoute,
   LangListingsIdRoute: LangListingsIdRouteWithChildren,
   LangListingsForRentRoute: LangListingsForRentRoute,
   LangListingsForSaleRoute: LangListingsForSaleRoute,
+  LangListingsIdHowToApplyRoute: LangListingsIdHowToApplyRoute,
 }
 
 const LangRouteWithChildren = LangRoute._addFileChildren(LangRouteChildren)
-
-interface AccountRouteChildren {
-  AccountApplicationsRoute: typeof AccountApplicationsRoute
-  AccountSettingsRoute: typeof AccountSettingsRoute
-}
-
-const AccountRouteChildren: AccountRouteChildren = {
-  AccountApplicationsRoute: AccountApplicationsRoute,
-  AccountSettingsRoute: AccountSettingsRoute,
-}
-
-const AccountRouteWithChildren =
-  AccountRoute._addFileChildren(AccountRouteChildren)
 
 interface ListingsIdNextStepsRouteChildren {
   ListingsIdNextStepsDocumentsRoute: typeof ListingsIdNextStepsDocumentsRoute
@@ -1060,13 +1040,11 @@ const ListingsIdNextStepsRouteWithChildren =
   ListingsIdNextStepsRoute._addFileChildren(ListingsIdNextStepsRouteChildren)
 
 interface ListingsIdRouteChildren {
-  ListingsIdHowToApplyRoute: typeof ListingsIdHowToApplyRoute
   ListingsIdNextStepsRoute: typeof ListingsIdNextStepsRouteWithChildren
   ListingsIdApplyIntroRoute: typeof ListingsIdApplyIntroRoute
 }
 
 const ListingsIdRouteChildren: ListingsIdRouteChildren = {
-  ListingsIdHowToApplyRoute: ListingsIdHowToApplyRoute,
   ListingsIdNextStepsRoute: ListingsIdNextStepsRouteWithChildren,
   ListingsIdApplyIntroRoute: ListingsIdApplyIntroRoute,
 }
@@ -1078,7 +1056,7 @@ const ListingsIdRouteWithChildren = ListingsIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LangRoute: LangRouteWithChildren,
-  AccountRoute: AccountRouteWithChildren,
+  AccountRoute: AccountRoute,
   AdditionalResourcesRoute: AdditionalResourcesRoute,
   CreateAccountRoute: CreateAccountRoute,
   DisclaimerRoute: DisclaimerRoute,
@@ -1091,9 +1069,12 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignInRoute: SignInRoute,
+  AccountApplicationsRoute: AccountApplicationsRoute,
+  AccountSettingsRoute: AccountSettingsRoute,
   ListingsIdRoute: ListingsIdRouteWithChildren,
   ListingsForRentRoute: ListingsForRentRoute,
   ListingsForSaleRoute: ListingsForSaleRoute,
+  ListingsIdHowToApplyRoute: ListingsIdHowToApplyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

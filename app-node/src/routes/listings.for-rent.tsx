@@ -1,38 +1,18 @@
 /**
- * RentDirectory route - Lists all rental listings.
- * Server function fetches data via Rails proxy with caching and retry.
- * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7
+ * Bridges to the original Rails react-on-rails page component in
+ * app/javascript. The page is mounted client-side after translations load
+ * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
  */
-
 import { createFileRoute } from "@tanstack/react-router"
-import { getListings } from "../lib/listings/server-fns"
-import { ErrorPage } from "../components/ErrorPage"
-import { RentDirectory } from "../pages/listings/RentDirectory"
+import { RailsPage } from "../components/RailsPage"
+
+const load = () => import("../../../app/javascript/pages/listings/for-rent")
 
 export const Route = createFileRoute("/listings/for-rent")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    force: search.force === "true" || search.force === true,
-  }),
-  loaderDeps: ({ search }) => ({ force: search.force }),
-  loader: async ({ deps }) => {
-    return getListings({
-      data: { type: "rental", force: deps.force },
-    })
-  },
-  component: RentDirectoryRoute,
-  errorComponent: RentDirectoryError,
+  ssr: false,
+  component: PageRoute,
 })
 
-function RentDirectoryRoute() {
-  const { listings } = Route.useLoaderData()
-  return <RentDirectory listings={listings} />
-}
-
-function RentDirectoryError() {
-  return (
-    <ErrorPage
-      title="Unable to Load Rental Listings"
-      message="We're having trouble loading the rental listings. Please try again in a moment."
-    />
-  )
+function PageRoute() {
+  return <RailsPage load={load} />
 }

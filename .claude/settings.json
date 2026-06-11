@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep *)",
+      "Bash(sed -n *)",
+      "Bash(agent-browser *)",
+      "Bash(curl *)",
+      "Bash(npm run dev *)",
+      "Bash(npm run dev)",
+      "Bash(find *)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run test)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

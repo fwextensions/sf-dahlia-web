@@ -1,57 +1,7 @@
 // DAHLIA Global Styles
-// This file imports Bloom UI component styles (which include Tailwind CSS) and custom DAHLIA styles.
 // Vite injects this as a blocking <link> stylesheet in <head> during SSR to prevent CLS.
-
-// Bloom Housing UI component styles (includes Tailwind base, components, and utilities)
-@import "@bloom-housing/ui-components/src/global/css-imports.scss";
+//
+// Load order (see __root.tsx): tailwind.css (preflight + utilities), then
+// app/javascript/components/base.scss (DAHLIA site styles + Bloom globals,
+// mirroring the Rails webpack pack), then this file.
 @import "@bloom-housing/ui-seeds/src/global/app-css.scss";
-
-// Google Fonts used by DAHLIA
-@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&family=Lato:wght@400;700;900&family=Playfair+Display&display=swap");
-
-// DAHLIA base styles
-html,
-body {
-  height: 100%;
-  font-size: 16px;
-}
-
-body {
-  font-family: "Open Sans", Helvetica, Arial, Verdana, sans-serif;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 24px;
-  color: #222;
-  background: #fff;
-  margin: 0;
-  padding: 0;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-// Link styles
-a {
-  color: #0077da;
-  text-decoration: none;
-
-  &:hover {
-    cursor: pointer;
-    text-decoration: underline;
-  }
-
-  &:focus {
-    outline: thin dotted;
-  }
-}
-
-// Image defaults
-img {
-  max-width: 100%;
-  height: auto;
-  display: inline-block;
-  vertical-align: middle;
-}

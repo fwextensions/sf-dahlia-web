@@ -85,25 +85,40 @@ const loadDefaultTranslation = async (): Promise<PhraseBundle> =>
  * @param prefix is a string, cannot be blank or null.
  */
 export const loadTranslations = async (prefix: LanguagePrefix): Promise<void> => {
+  // JSON dynamic imports differ between bundlers: Vite exposes the object on
+  // `default` (the dotted keys can't be named exports), webpack spreads the
+  // keys onto the namespace as well. Unwrap `default` when present.
+  const unwrap = (bundle: PhraseBundle): PhraseBundle =>
+    (bundle as { default?: PhraseBundle }).default ?? bundle
+
   // English is always loaded as the fallback bundle; the target language (if not
   // English) is loaded alongside it and selected as the active language. i18next's
   // fallbackLng="en" then mirrors polyglot's old "merge en, overlay target" behavior.
-  const resources: Record<string, PhraseBundle> = { en: await loadDefaultTranslation() }
+  const resources: Record<string, PhraseBundle> = { en: unwrap(await loadDefaultTranslation()) }
 
   const config = LANGUAGE_CONFIGS[prefix]
   if (!config.isDefault) {
-    resources[prefix] = await config.load()
+    resources[prefix] = unwrap(await config.load())
   }
 
   setActiveTranslationInstance(createTranslationInstance(prefix, resources))
 
   // load the plugin for localized formats https://day.js.org/docs/en/plugin/localized-format
-  const localizedFormat: PluginFunc<unknown> = require("dayjs/plugin/localizedFormat")
-  dayjs.extend(localizedFormat)
+  // dynamic import (rather than require) so this works under both webpack and Vite
+  const localizedFormat = await import("dayjs/plugin/localizedFormat")
+  dayjs.extend((localizedFormat.default ?? localizedFormat) as unknown as PluginFunc<unknown>)
 
-  // load the locale
-  if (prefix !== LanguagePrefix.English) {
-    require(`dayjs/locale/${dayJsLocales[prefix]}`)
+  // load the locale (static imports so any bundler can resolve the paths)
+  switch (dayJsLocales[prefix]) {
+    case dayJsLocales.es:
+      await import("dayjs/locale/es")
+      break
+    case dayJsLocales.tl:
+      await import("dayjs/locale/tl-ph")
+      break
+    case dayJsLocales.zh:
+      await import("dayjs/locale/zh")
+      break
   }
 }
 

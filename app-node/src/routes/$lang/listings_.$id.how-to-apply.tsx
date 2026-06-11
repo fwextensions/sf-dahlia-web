@@ -4,11 +4,11 @@
  * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
  */
 import { createFileRoute } from "@tanstack/react-router"
-import { RailsPage } from "../components/RailsPage"
+import { RailsPage } from "../../components/RailsPage"
 
-const load = () => import("../../../app/javascript/pages/reset-password")
+const load = () => import("../../../../app/javascript/pages/howToApply/how-to-apply")
 
-export const Route = createFileRoute("/reset-password")({
+export const Route = createFileRoute("/$lang/listings_/$id/how-to-apply")({
   ssr: false,
   component: PageRoute,
 })

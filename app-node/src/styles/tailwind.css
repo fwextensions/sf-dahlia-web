@@ -1,0 +1,8 @@
+/*
+ * Tailwind v4 entry point. The @config / @reference directives are injected
+ * by the plugin in postcss.config.js; this import emits preflight and the
+ * utilities generated from the content paths in tailwind.config.ts.
+ * Imported in __root.tsx before globals.scss so component styles can
+ * override the generated utilities where needed.
+ */
+@import "tailwindcss";

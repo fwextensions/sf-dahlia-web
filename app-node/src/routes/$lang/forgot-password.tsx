@@ -1,25 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { SignIn } from "@clerk/tanstack-react-start"
-
 /**
- * Forgot password route (with lang prefix).
- * Renders Clerk's SignIn component which includes the "forgot password?" link.
- * Clerk handles the password reset flow internally.
+ * Bridges to the original Rails react-on-rails page component in
+ * app/javascript. The page is mounted client-side after translations load
+ * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
  */
+import { createFileRoute } from "@tanstack/react-router"
+import { RailsPage } from "../../components/RailsPage"
+
+const load = () => import("../../../../app/javascript/pages/forgot-password")
+
 export const Route = createFileRoute("/$lang/forgot-password")({
-  component: ForgotPasswordPage,
+  ssr: false,
+  component: PageRoute,
 })
 
-function ForgotPasswordPage() {
-  const { lang } = Route.useParams()
-
-  return (
-    <main>
-      <h1>Forgot Password</h1>
-      <SignIn
-        signUpUrl={`/${lang}/create-account`}
-        fallbackRedirectUrl={`/${lang}`}
-      />
-    </main>
-  )
+function PageRoute() {
+  return <RailsPage load={load} />
 }

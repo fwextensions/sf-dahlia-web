@@ -1,41 +1,18 @@
+/**
+ * Bridges to the original Rails react-on-rails page component in
+ * app/javascript. The page is mounted client-side after translations load
+ * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
+ */
 import { createFileRoute } from "@tanstack/react-router"
-import { protectedRouteGuard } from "~/lib/auth/protected-route"
-import { getAccountProfile } from "~/lib/account/server-fns"
+import { RailsPage } from "../components/RailsPage"
+
+const load = () => import("../../../app/javascript/pages/account/my-account")
 
 export const Route = createFileRoute("/my-account")({
-  beforeLoad: protectedRouteGuard,
-  loader: () => getAccountProfile(),
-  component: MyAccount,
+  ssr: false,
+  component: PageRoute,
 })
 
-function MyAccount() {
-  const profile = Route.useLoaderData()
-
-  return (
-    <main>
-      <h1>My Account</h1>
-      <section aria-label="Profile Information">
-        <dl>
-          <dt>Email</dt>
-          <dd>{profile.email}</dd>
-
-          <dt>Authentication Provider</dt>
-          <dd>{profile.provider === "clerk" ? "Clerk" : "Legacy (Devise)"}</dd>
-
-          <dt>Salesforce Contact ID</dt>
-          <dd>{profile.salesforceContactId}</dd>
-        </dl>
-      </section>
-      <nav aria-label="Account navigation">
-        <ul>
-          <li>
-            <a href="/my-applications">My Applications</a>
-          </li>
-          <li>
-            <a href="/account/settings">Account Settings</a>
-          </li>
-        </ul>
-      </nav>
-    </main>
-  )
+function PageRoute() {
+  return <RailsPage load={load} />
 }

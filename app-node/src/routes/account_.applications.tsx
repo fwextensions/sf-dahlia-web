@@ -6,9 +6,9 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { RailsPage } from "../components/RailsPage"
 
-const load = () => import("../../../app/javascript/pages/reset-password")
+const load = () => import("../../../app/javascript/pages/account/applications")
 
-export const Route = createFileRoute("/reset-password")({
+export const Route = createFileRoute("/account_/applications")({
   ssr: false,
   component: PageRoute,
 })

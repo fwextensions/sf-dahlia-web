@@ -1,24 +1,44 @@
-import type { Config } from "tailwindcss"
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const bloomTheme = require("@bloom-housing/ui-components/tailwind.config.js")
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+import { createRequire } from "node:module"
+
+const require = createRequire(import.meta.url)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /**
- * Tailwind config for app-node.
+ * Tailwind (v4 compat-mode) config for app-node.
  *
- * Extends the Bloom Housing UI component theme so that all Bloom utility
- * classes (font-alt-sans, text-primary, bg-primary-darker, etc.) are
- * available. This mirrors how the existing Rails app extends bloomTheme in
- * tailwind.config.js at the repo root.
+ * Loads the local ui-components fork's tailwind.config.js (v4-ready: CSS
+ * variable theme values, flattened callbacks) and layers DAHLIA's overrides
+ * on top, mirroring the repo-root tailwind.config.js used by the Rails
+ * webpack build. Referenced via @config (injected in postcss.config.js).
+ *
+ * The fork location can be overridden with UI_COMPONENTS_DIR.
  */
-const config: Config = {
+const uiComponentsDir =
+  process.env.UI_COMPONENTS_DIR ?? path.resolve(__dirname, "..", "..", "ui-components")
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const bloomTheme = require(path.join(uiComponentsDir, "tailwind.config.js"))
+
+const config = {
   ...bloomTheme,
   content: [
     "./src/**/*.{ts,tsx}",
-    "./node_modules/@bloom-housing/ui-components/src/**/*.{ts,tsx}",
+    // Original Rails frontend pages rendered via the RailsPage bridge
+    "../app/javascript/**/*.{ts,tsx}",
+    // Local ui-components fork (compiled from source by Vite)
+    `${uiComponentsDir.replace(/\\/g, "/")}/src/**/*.{ts,tsx}`,
     "./node_modules/@bloom-housing/ui-seeds/src/**/*.{ts,tsx}",
   ],
   theme: {
     ...bloomTheme.theme,
+    // DAHLIA overrides copied from the repo-root tailwind.config.js
+    fontSize: {
+      ...bloomTheme.theme?.fontSize,
+      "3xl": ["2rem", { lineHeight: "1.25" }],
+      "4xl": ["2.5rem", { lineHeight: "1.25" }],
+    },
     extend: {
       ...bloomTheme.theme?.extend,
       fontFamily: {
@@ -28,7 +48,6 @@ const config: Config = {
       },
     },
   },
-  plugins: bloomTheme.plugins ?? [],
 }
 
 export default config
