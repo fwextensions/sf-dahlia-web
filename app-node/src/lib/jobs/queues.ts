@@ -37,6 +37,9 @@ export const DEFAULT_JOB_OPTIONS: JobsOptions = {
 
 /** Dead letter queue for jobs that exceed max retries */
 export const deadLetterQueue = new Queue("deadLetter", { connection })
+deadLetterQueue.on("error", (err) => {
+  console.warn("[jobs] deadLetterQueue connection error (unavailable):", err.message)
+})
 
 /** File attachment processing queue */
 export const fileAttachmentQueue = new Queue<FileAttachmentJob>(
@@ -46,11 +49,17 @@ export const fileAttachmentQueue = new Queue<FileAttachmentJob>(
     defaultJobOptions: DEFAULT_JOB_OPTIONS,
   }
 )
+fileAttachmentQueue.on("error", (err) => {
+  console.warn("[jobs] fileAttachmentQueue connection error (unavailable):", err.message)
+})
 
 /** Email sending queue */
 export const emailQueue = new Queue<EmailJob>("email", {
   connection,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
+})
+emailQueue.on("error", (err) => {
+  console.warn("[jobs] emailQueue connection error (unavailable):", err.message)
 })
 
 /**

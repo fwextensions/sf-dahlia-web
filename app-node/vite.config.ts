@@ -1,8 +1,42 @@
-import { defineConfig } from "vite"
+import { defineConfig, type Plugin } from "vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
 import tsconfigPaths from "vite-tsconfig-paths"
 import path from "node:path"
+
+/**
+ * Vite plugin that intercepts @bloom-housing/ui-components/tailwind.config.js
+ * at the load stage. That file uses module.exports (CJS), which crashes the
+ * Vite SSR module runner with "module is not defined". We replace it with
+ * ESM-compatible code that exports the same breakpoint data.
+ */
+function bloomTailwindShimPlugin(): Plugin {
+  const BLOOM_TAILWIND_SUFFIX = path.join(
+    "@bloom-housing",
+    "ui-components",
+    "tailwind.config.js"
+  )
+  return {
+    name: "bloom-tailwind-shim",
+    load(id) {
+      if (id.endsWith(BLOOM_TAILWIND_SUFFIX) || id.replace(/\\/g, "/").endsWith("@bloom-housing/ui-components/tailwind.config.js")) {
+        return `
+export const theme = {
+  screens: {
+    sm: "640px",
+    md: "768px",
+    lg: "1200px",
+    xl: "1280px",
+    "2xl": "1440px",
+    print: { raw: "print" },
+  },
+};
+export default { theme };
+`
+      }
+    },
+  }
+}
 
 export default defineConfig({
   server: {
@@ -25,6 +59,7 @@ export default defineConfig({
     include: ["react-dropzone"],
   },
   plugins: [
+    bloomTailwindShimPlugin(),
     tsconfigPaths(),
     tanstackStart({
       server: {
@@ -45,8 +80,9 @@ export default defineConfig({
       // so we match by absolute path using a regex. The SSR module runner treats all
       // files as ESM and crashes on module.exports — this shim re-exports the same
       // breakpoint data as proper ESM.
+      // Note: use both / and \\ to handle Windows and Unix path separators.
       {
-        find: /.*\/@bloom-housing\/ui-components\/tailwind\.config\.js$/,
+        find: /[/\\]@bloom-housing[/\\]ui-components[/\\]tailwind\.config\.js$/,
         replacement: path.resolve(__dirname, "src/lib/shims/bloom-tailwind-config.ts"),
       },
       // react-dropzone v11 ships CJS as its main entry and ESM under dist/es/.
@@ -118,5 +154,16 @@ $screen-print: print;
         },
       },
     },
+    ssr: {
+      // Force Vite to bundle @bloom-housing/ui-components through its module
+      // resolver so that alias rules (tailwind.config.js shim) are applied.
+      // Without noExternal, Vite skips aliasing for node_modules in SSR.
+      noExternal: ["@bloom-housing/ui-components"],
+    },
+  },
+  ssr: {
+    // Same as environments.ssr.noExternal — required for Vite 5/6 compat layer
+    // to ensure the tailwind.config.js alias is applied during SSR module loading.
+    noExternal: ["@bloom-housing/ui-components"],
   },
 })

@@ -151,14 +151,23 @@ async function getServerDeps() {
   const { withRetry } = await import("../salesforce/retry")
 
   const redis = new Redis(env.REDIS_URL, {
-    maxRetriesPerRequest: 3,
-    // Limit reconnect attempts so a missing Redis doesn't spam logs
-    retryStrategy: (times) => (times > 3 ? null : Math.min(times * 200, 1000)),
+    maxRetriesPerRequest: null,
+    // Fail fast — 500ms connection timeout, no retries
+    // so a missing Redis never blocks the request path
+    connectTimeout: 500,
+    retryStrategy: () => null,
+    // Don't queue commands when disconnected — they reject immediately
+    // and cache-service catches them as a cache miss
+    enableOfflineQueue: false,
+    lazyConnect: true,
   })
-  // Attach an error handler so ioredis connection failures don't become
-  // unhandled Node.js error events that crash the process.
-  redis.on("error", (err) => {
-    console.warn("[redis] Connection error (cache unavailable):", err.message)
+  // Attach error handler so connection failures don't become unhandled events
+  redis.on("error", () => {
+    // Redis unavailable — cache bypassed, data fetched directly from Salesforce
+  })
+  // Fire-and-forget: don't await so a missing Redis never blocks the request.
+  redis.connect().catch(() => {
+    // Redis unavailable — cache will be bypassed, data fetched directly
   })
   const cacheService = createCacheService(redis)
   const proxyClient = createSalesforceProxyClient()
@@ -212,7 +221,11 @@ export const getListings = createServerFn({ method: "GET" })
       console.error("[getListings] Failed to fetch listings:", err)
       throw err
     } finally {
-      await redis.quit()
+      try {
+        await redis.quit()
+      } catch {
+        // Redis wasn't connected — nothing to quit
+      }
     }
   })
 
@@ -249,7 +262,7 @@ export const getListingDetail = createServerFn({ method: "GET" })
 
       return listing
     } finally {
-      await redis.quit()
+      try { await redis.quit() } catch { /* Redis was not connected */ }
     }
   })
 
@@ -285,7 +298,7 @@ export const getListingUnits = createServerFn({ method: "GET" })
 
       return units
     } finally {
-      await redis.quit()
+      try { await redis.quit() } catch { /* Redis was not connected */ }
     }
   })
 
@@ -321,7 +334,7 @@ export const getListingPreferences = createServerFn({ method: "GET" })
 
       return preferences
     } finally {
-      await redis.quit()
+      try { await redis.quit() } catch { /* Redis was not connected */ }
     }
   })
 
@@ -358,7 +371,7 @@ export const getListingLotteryBuckets = createServerFn({ method: "GET" })
 
       return buckets
     } finally {
-      await redis.quit()
+      try { await redis.quit() } catch { /* Redis was not connected */ }
     }
   })
 
@@ -396,7 +409,7 @@ export const getListingLotteryRanking = createServerFn({ method: "GET" })
 
       return ranking
     } finally {
-      await redis.quit()
+      try { await redis.quit() } catch { /* Redis was not connected */ }
     }
   })
 
@@ -438,7 +451,7 @@ export const getAmiData = createServerFn({ method: "GET" })
 
       return amiLevels
     } finally {
-      await redis.quit()
+      try { await redis.quit() } catch { /* Redis was not connected */ }
     }
   })
 
@@ -480,6 +493,6 @@ export const getEligibleListings = createServerFn({ method: "GET" })
 
       return listings
     } finally {
-      await redis.quit()
+      try { await redis.quit() } catch { /* Redis was not connected */ }
     }
   })

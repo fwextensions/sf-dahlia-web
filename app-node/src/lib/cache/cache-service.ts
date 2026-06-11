@@ -31,14 +31,19 @@ export class CacheService {
 
   /**
    * Retrieve a cached value by key.
-   * Returns null if the key does not exist.
+   * Returns null if the key does not exist or if Redis is unavailable.
    */
   async get<T>(key: string): Promise<T | null> {
-    const raw = await this.redis.get(key)
-    if (raw === null) return null
     try {
-      return JSON.parse(raw) as T
+      const raw = await this.redis.get(key)
+      if (raw === null) return null
+      try {
+        return JSON.parse(raw) as T
+      } catch {
+        return null
+      }
     } catch {
+      // Redis unavailable — treat as cache miss
       return null
     }
   }
@@ -48,37 +53,47 @@ export class CacheService {
    * If no TTL is provided, the key does not expire.
    * Also stores a stale copy (prefixed with "stale:") without TTL
    * so it can be used as fallback on 5xx/timeout errors.
+   * Silently no-ops if Redis is unavailable.
    */
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
-    const serialized = JSON.stringify(value)
-    if (ttl !== undefined && ttl > 0) {
-      await this.redis.set(key, serialized, "EX", ttl)
-    } else {
-      await this.redis.set(key, serialized)
+    try {
+      const serialized = JSON.stringify(value)
+      if (ttl !== undefined && ttl > 0) {
+        await this.redis.set(key, serialized, "EX", ttl)
+      } else {
+        await this.redis.set(key, serialized)
+      }
+      // Store stale copy without TTL for fallback on errors
+      await this.redis.set(`stale:${key}`, serialized)
+    } catch {
+      // Redis unavailable — skip caching, data will still be returned to caller
     }
-    // Store stale copy without TTL for fallback on errors
-    await this.redis.set(`stale:${key}`, serialized)
   }
 
   /**
    * Invalidate cache entries matching a glob pattern.
    * Uses Redis SCAN to find matching keys, then deletes them.
+   * Silently no-ops if Redis is unavailable.
    */
   async invalidate(pattern: string): Promise<void> {
-    let cursor = "0"
-    do {
-      const [nextCursor, keys] = await this.redis.scan(
-        cursor,
-        "MATCH",
-        pattern,
-        "COUNT",
-        100
-      )
-      cursor = nextCursor
-      if (keys.length > 0) {
-        await this.redis.del(...keys)
-      }
-    } while (cursor !== "0")
+    try {
+      let cursor = "0"
+      do {
+        const [nextCursor, keys] = await this.redis.scan(
+          cursor,
+          "MATCH",
+          pattern,
+          "COUNT",
+          100
+        )
+        cursor = nextCursor
+        if (keys.length > 0) {
+          await this.redis.del(...keys)
+        }
+      } while (cursor !== "0")
+    } catch {
+      // Redis unavailable — nothing to invalidate
+    }
   }
 
   /**
@@ -186,13 +201,19 @@ export class CacheService {
   /**
    * Retrieve the stale copy of a cached value regardless of TTL expiration.
    * Uses the "stale:" prefixed key that is stored without TTL.
+   * Returns null if Redis is unavailable.
    */
   private async getStale<T>(key: string): Promise<T | null> {
-    const raw = await this.redis.get(`stale:${key}`)
-    if (raw === null) return null
     try {
-      return JSON.parse(raw) as T
+      const raw = await this.redis.get(`stale:${key}`)
+      if (raw === null) return null
+      try {
+        return JSON.parse(raw) as T
+      } catch {
+        return null
+      }
     } catch {
+      // Redis unavailable — no stale data accessible
       return null
     }
   }
