@@ -2,17 +2,25 @@ import { StartClient } from "@tanstack/react-start/client"
 import { StrictMode } from "react"
 import { hydrateRoot } from "react-dom/client"
 import { getCurrentLanguage, loadTranslations } from "../../app/javascript/util/languageUtil"
+import { initI18nFromStore } from "./lib/i18n/store"
 
-// Load translations before hydrating so the client's t() resolves the same
-// strings the server rendered — otherwise SSR'd native pages hydrate with
-// "Missing Translation Phrases" and React reports a text mismatch.
-// See docs/tanstack-ssr-plan.md prereq 2. This is the load-before-hydrate form;
-// the fuller fix serializes the SSR resource bundle and inits synchronously.
+// Initialize translations before hydrating so the client's t() resolves the same
+// strings the server rendered — otherwise SSR'd pages hydrate with "Missing
+// Translation Phrases" and React reports a text mismatch.
+//
+// Preferred path (prereq 2): the server serialized the translation store into
+// window.__DAHLIA_I18N__, so init synchronously from it — no network round-trip.
+// Fallback: if the store is absent, fetch the bundles the old way.
 async function bootstrap() {
   try {
-    await loadTranslations(getCurrentLanguage(window.location.pathname))
+    const store = window.__DAHLIA_I18N__
+    if (store) {
+      initI18nFromStore(store)
+    } else {
+      await loadTranslations(getCurrentLanguage(window.location.pathname))
+    }
   } catch (err) {
-    console.error("[client] loadTranslations failed before hydrate:", err)
+    console.error("[client] translation init failed before hydrate:", err)
   }
 
   hydrateRoot(

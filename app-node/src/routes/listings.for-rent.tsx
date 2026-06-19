@@ -1,24 +1,18 @@
 /**
- * SSR spike: the rental directory rendered server-side by the native
- * RentDirectory component (no RailsPage bridge).
+ * SSR: the rental directory rendered server-side by the native RentDirectory
+ * component (no RailsPage bridge).
  *
- *  - beforeLoad loads translations for the request's language so the SSR render
- *    pass resolves t() correctly (module-scoped active instance — see
- *    docs/tanstack-ssr-plan.md prereq 1).
+ *  - Translations are loaded + serialized by the root route (see __root.tsx +
+ *    docs/tanstack-ssr-plan.md prereq 2), so t() resolves during the SSR render
+ *    and the client hydrates synchronously from the serialized store.
  *  - loader fetches listings on the server via the getListings server fn.
  *  - ssr defaults to true (no `ssr: false`), so the page is server-rendered.
- *
- * See docs/tanstack-ssr-plan.md for the rollout + the hydration-parity follow-up.
  */
 import { createFileRoute } from "@tanstack/react-router"
 import { RentDirectory } from "~/pages/listings/RentDirectory"
 import { getListings, type SerializableListing } from "../lib/listings/server-fns"
-import { getCurrentLanguage, loadTranslations } from "../../../app/javascript/util/languageUtil"
 
 export const Route = createFileRoute("/listings/for-rent")({
-  beforeLoad: async ({ location }) => {
-    await loadTranslations(getCurrentLanguage(location.pathname))
-  },
   loader: async () => {
     let listings: SerializableListing[] = []
     try {

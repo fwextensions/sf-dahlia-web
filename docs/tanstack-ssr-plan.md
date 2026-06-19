@@ -75,15 +75,36 @@ with `AsyncLocalStorage` (or pass the instance explicitly). Sequence:
   `AsyncLocalStorage`-scoped instance so `t()` resolves the current request's
   language. One change in `translator.ts`; call sites untouched.
 
-### 2. Hydration parity for translations
+### 2. Hydration parity for translations — DONE
 
-Loaders/`beforeLoad` run on the server during SSR; their results are dehydrated
-and **not re-run on initial client hydration**. So the client's first render
-needs the same translations the server used, or React throws a hydration
-mismatch. Standard i18next-SSR fix: serialize the active language's resource
-bundle into the SSR payload and init the client instance synchronously from it
-before `hydrateRoot` (the "initial store" pattern). Until that's in place, expect
-hydration warnings on SSR'd pages (server HTML is correct; client re-renders).
+Loaders/`beforeLoad` run on the server during SSR; their results are **not re-run
+on initial client hydration**, so the client's first render needs the same
+translations the server used or React throws a hydration mismatch.
+
+Implemented (the "initial store" pattern):
+- Root `beforeLoad` builds a translation store and registers the active instance
+  for the SSR render (and on client navigations). `app/javascript/util/
+  languageUtil.tsx` was refactored to expose `loadTranslationResources` /
+  `loadDayjsLocale` for this.
+- `app-node/src/lib/i18n/store.ts` builds a **single merged bundle** (en overlaid
+  by the target language) instead of inlining en + target separately — identical
+  rendered output at ~half the payload (~210KB en / ~240KB es vs ~450KB).
+- `__root.tsx` serializes the store into a `<head>` `<script>` (window.__DAHLIA_I18N__),
+  rendering identical content on server (module var) and client (the window value
+  that script set) so there's no head mismatch. `<` is escaped to prevent
+  `</script>` breakout (phrase values contain HTML).
+- `client.tsx` inits i18next **synchronously** from the store before
+  `hydrateRoot` — no translation fetch. Falls back to the async load if absent.
+
+Verified: SSR'd `/listings/for-rent` hydrates with no mismatch, no client-side
+translations JSON fetch, fully translated EN + ES.
+
+Remaining trade-off / future optimization: the store is inlined on **every** page
+(including `ssr:false` bridged routes, where `RailsPage` also still fetches
+translations — redundant). The bundle is large (~210-240KB). The real fix for
+size is **used-key capture** — serialize only the keys the page actually rendered
+— which needs a buffered (non-streaming) render handler to know used keys before
+emitting the store. Deferred.
 
 ### 3. `getCurrentLanguage` must not read `window` on the server
 
@@ -96,8 +117,8 @@ the route `location.pathname` on the server.
 2. **First slice — `/listings/for-rent` → `RentDirectory`** (this doc's spike):
    loader + native component + `ssr: true`. Verify server-rendered HTML contains
    the translated directory markup.
-3. **Prereq 2:** serialize + client-init translations to kill hydration
-   mismatch; re-verify for-rent hydrates cleanly.
+3. **Prereq 2 (DONE):** serialize + client-init translations to kill hydration
+   mismatch; for-rent verified hydrating cleanly with no client fetch.
 4. **Roll out** to `for-sale` (`SaleDirectory`) and `/listings/$id`
    (`ListingDetail`) using `getListings`/`getListingDetail`; then the `$lang/*`
    variants.

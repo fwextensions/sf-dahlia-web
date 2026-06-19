@@ -84,26 +84,41 @@ const loadDefaultTranslation = async (): Promise<PhraseBundle> =>
  *
  * @param prefix is a string, cannot be blank or null.
  */
-export const loadTranslations = async (prefix: LanguagePrefix): Promise<void> => {
-  // JSON dynamic imports differ between bundlers: Vite exposes the object on
-  // `default` (the dotted keys can't be named exports), webpack spreads the
-  // keys onto the namespace as well. Unwrap `default` when present.
-  const unwrap = (bundle: PhraseBundle): PhraseBundle =>
-    (bundle as { default?: PhraseBundle }).default ?? bundle
+// JSON dynamic imports differ between bundlers: Vite exposes the object on
+// `default` (the dotted keys can't be named exports), webpack spreads the
+// keys onto the namespace as well. Unwrap `default` when present.
+const unwrapJsonBundle = (bundle: PhraseBundle): PhraseBundle =>
+  (bundle as { default?: PhraseBundle }).default ?? bundle
 
-  // English is always loaded as the fallback bundle; the target language (if not
-  // English) is loaded alongside it and selected as the active language. i18next's
-  // fallbackLng="en" then mirrors polyglot's old "merge en, overlay target" behavior.
-  const resources: Record<string, PhraseBundle> = { en: unwrap(await loadDefaultTranslation()) }
+/**
+ * Load the English (fallback) + target phrase bundles for a language, without
+ * registering them as the active instance. Exposed so SSR (app-node) can build a
+ * serializable translation store for the client; `loadTranslations` uses it too.
+ *
+ * English is always loaded as the fallback bundle; the target language (if not
+ * English) is loaded alongside it. i18next's fallbackLng="en" then mirrors
+ * polyglot's old "merge en, overlay target" behavior.
+ */
+export const loadTranslationResources = async (
+  prefix: LanguagePrefix
+): Promise<{ lng: LanguagePrefix; resources: Record<string, PhraseBundle> }> => {
+  const resources: Record<string, PhraseBundle> = {
+    en: unwrapJsonBundle(await loadDefaultTranslation()),
+  }
 
   const config = LANGUAGE_CONFIGS[prefix]
   if (!config.isDefault) {
-    resources[prefix] = unwrap(await config.load())
+    resources[prefix] = unwrapJsonBundle(await config.load())
   }
 
-  setActiveTranslationInstance(createTranslationInstance(prefix, resources))
+  return { lng: prefix, resources }
+}
 
-  // load the plugin for localized formats https://day.js.org/docs/en/plugin/localized-format
+/**
+ * Load the dayjs localized-format plugin and the locale data for a language.
+ * Split out of loadTranslations so the SSR store path can trigger it too.
+ */
+export const loadDayjsLocale = async (prefix: LanguagePrefix): Promise<void> => {
   // dynamic import (rather than require) so this works under both webpack and Vite
   const localizedFormat = await import("dayjs/plugin/localizedFormat")
   dayjs.extend((localizedFormat.default ?? localizedFormat) as unknown as PluginFunc<unknown>)
@@ -120,6 +135,12 @@ export const loadTranslations = async (prefix: LanguagePrefix): Promise<void> =>
       await import("dayjs/locale/zh")
       break
   }
+}
+
+export const loadTranslations = async (prefix: LanguagePrefix): Promise<void> => {
+  const { lng, resources } = await loadTranslationResources(prefix)
+  setActiveTranslationInstance(createTranslationInstance(lng, resources))
+  await loadDayjsLocale(prefix)
 }
 
 /**
