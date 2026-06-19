@@ -3,6 +3,12 @@
    nesting flattened. The original "whitespace: nowrap" typo (an invalid,
    ignored property) was dropped. */
 
+/* PreferencesList renders `.info-card` markup and only tweaks the title here;
+   the base card chrome (border, uppercase sans-bold title) lives in InfoCard.css.
+   In ui-components both shipped in one global bundle; here each component imports
+   its own CSS, so pull in the dependency explicitly. */
+@import "./InfoCard.css";
+
 .preferences-list {
   --info-card-title-color: var(--bloom-color-gray-800);
   --ordinal-bg-color: var(--bloom-color-white);

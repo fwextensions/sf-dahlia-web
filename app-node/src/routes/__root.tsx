@@ -26,6 +26,17 @@ import { getCurrentLanguage } from "../../../app/javascript/util/languageUtil"
 import "../styles/tailwind.css"
 import "../styles/globals.scss"
 
+// Canonical Tailwind v4 cascade-layer order. This MUST be registered before any
+// @layer block in any stylesheet, otherwise layers fall back to first-appearance
+// order. In app-node's build, @tailwindcss/postcss relocates the @layer order
+// statement below the first emitted `@layer components` block, so `components`
+// ended up registered before `base` — base's preflight (border reset) and the
+// unlayered h1–h6 font-serif rule then beat first-party `components` CSS
+// (collapsed card borders, serif .info-card titles). Emitting the statement as
+// the first inline <style> in <head> pins the order deterministically. Matches
+// the order theme.css declares for the Rails webpack build.
+const LAYER_ORDER = "@layer theme, base, seeds, components, utilities;"
+
 // Clerk requires a publishable key. When running locally without one configured,
 // skip the provider entirely so the app still renders for non-auth pages.
 const CLERK_PUBLISHABLE_KEY = process.env.CLERK_PUBLISHABLE_KEY ?? ""
@@ -101,6 +112,8 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
       <head>
+        {/* Pin cascade-layer order before any stylesheet link is parsed. */}
+        <style dangerouslySetInnerHTML={{ __html: LAYER_ORDER }} />
         {i18nStore && (
           <script
             // eslint-disable-next-line react/no-danger

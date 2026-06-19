@@ -11,5 +11,17 @@
  * app-node's own source tree for utility class usage (paths are relative to
  * this file: ../ is app-node/src).
  */
+/*
+ * Canonical cascade-layer order — must be the FIRST statement so every layer is
+ * registered in this order before any @layer block appears (here or in the
+ * code-split component CSS chunks). Without it, app-node's build only emitted
+ * `@layer seeds, components` and the rest registered by first-appearance
+ * (components before base), so base's preflight border reset and the unlayered
+ * h1–h6 `font-serif` rule beat first-party `components` CSS — collapsing card
+ * borders and forcing serif titles on .info-card etc. theme.css declares the
+ * same order for the Rails webpack build.
+ */
+@layer theme, base, seeds, components, utilities;
+
 @import "../../../app/javascript/components/base.css";
 @source "../**/*.{ts,tsx}";

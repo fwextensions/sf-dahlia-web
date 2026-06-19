@@ -13,13 +13,21 @@ import {
   LinkButton,
   ListingDetailItem,
   ListingDetails,
+  PreferencesList,
   SidebarBlock,
   SiteAlert,
   StandardTable,
   t,
+  type ListPreference,
 } from "@uic"
 import { Message } from "@bloom-housing/ui-seeds"
 import dayjs from "dayjs"
+import {
+  PREFERENCES,
+  PREFERENCES_IDS,
+  PREFERENCES_WITH_PROOF,
+} from "../../../../app/javascript/modules/constants"
+import { getSfGovUrl } from "../../../../app/javascript/util/languageUtil"
 import type {
   SerializableListing,
   SerializablePreference,
@@ -35,6 +43,11 @@ interface ListingDetailProps {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Inlined from app/javascript/util/listingUtil (that module touches `window`
+// at eval time, which crashes SSR — see preferences mapping below).
+const preferenceNameHasVeteran = (preferenceName: string): boolean =>
+  typeof preferenceName === "string" && preferenceName.toLowerCase().includes("veteran")
 
 function isApplicationOpen(listing: SerializableListing): boolean {
   if (!listing.applicationDueDate) return false
@@ -127,20 +140,90 @@ function UnitsTable({ units }: { units: SerializableUnit[] }) {
   )
 }
 
-function PreferencesList({ preferences }: { preferences: SerializablePreference[] }) {
+/**
+ * Resolve a preference's description. Custom (Salesforce) descriptions render
+ * the listing's own text; standard preferences use the translated copy. Mirrors
+ * determineDescription in app/javascript/modules/listingDetails/
+ * ListingDetailsPreferences.tsx, minus the Salesforce machine-translation
+ * lookup (getTranslatedString touches the DOM and isn't wired for SSR yet).
+ */
+function determineDescription(pref: SerializablePreference): Pick<
+  ListPreference,
+  "description" | "descriptionClassName"
+> {
+  const name = pref.preferenceName
+  const nrhpDistrict = pref.NRHPDistrict as string | undefined
+  if (pref.customPreferenceDescription) {
+    return {
+      description: (pref.description as string) ?? "",
+      descriptionClassName: "translate",
+    }
+  }
+  if (name === PREFERENCES.neighborhoodResidence && nrhpDistrict) {
+    return {
+      description: t(
+        "listings.lotteryPreference.Neighborhood Resident Housing Preference (NRHP).desc.withDistrict",
+        { number: nrhpDistrict }
+      ),
+    }
+  }
+  return { description: t(`listings.lotteryPreference.${name}.desc`) }
+}
+
+/**
+ * Maps server preference records to the @uic PreferencesList card model.
+ * Faithful to ListingDetailsPreferences.tsx (veteran filter, Read More +
+ * Document Checklist links, "up to N units" subtitle, ordinals). The detail
+ * route has no localized variant yet, so document-checklist links use the
+ * non-prefixed path.
+ */
+function toListPreferences(preferences: SerializablePreference[]): ListPreference[] {
+  return preferences
+    .filter((pref) => !preferenceNameHasVeteran(pref.preferenceName))
+    .map((pref, index) => {
+      const name = pref.preferenceName
+      const links: NonNullable<ListPreference["links"]> = []
+
+      if (pref.readMoreUrl) {
+        links.push({
+          title: t("label.readMore"),
+          url: getSfGovUrl(pref.readMoreUrl as string, "/"),
+          ariaLabel: t(`listings.lotteryPreference.${name}.readMore`),
+        })
+      }
+
+      if (PREFERENCES_WITH_PROOF.includes(name)) {
+        const anchorMap: Record<string, string> = {
+          "Neighborhood Resident Housing Preference (NRHP)": PREFERENCES_IDS.neighborhoodResidence,
+          "Rent Burdened / Assisted Housing Preference": PREFERENCES_IDS.assistedHousing,
+          "Live or Work in San Francisco Preference": PREFERENCES_IDS.liveWorkInSf,
+          "Alice Griffith Housing Development Resident": PREFERENCES_IDS.rightToReturn,
+          [PREFERENCES.rightToReturnHuntersView]: PREFERENCES_IDS.rightToReturn,
+          [PREFERENCES.rightToReturnPotrero]: PREFERENCES_IDS.rightToReturn,
+        }
+        links.push({
+          title: t("label.viewDocumentChecklist"),
+          ariaLabel: t(`listings.lotteryPreference.${name}.additionalDocumentation`),
+          url: `/document-checklist#${anchorMap[name] ?? ""}`,
+        })
+      }
+
+      const unitsAvailable = pref.unitsAvailable as number | undefined
+      return {
+        ...determineDescription(pref),
+        links,
+        ordinal: index + 1,
+        subtitle: unitsAvailable
+          ? t("listings.lotteryPreference.upToUnits", unitsAvailable)
+          : undefined,
+        title: t(`listings.lotteryPreference.${name}.title`),
+      }
+    })
+}
+
+function PreferencesSection({ preferences }: { preferences: SerializablePreference[] }) {
   if (!preferences.length) return null
-
-  const sorted = [...preferences].sort((a, b) => a.preferenceOrder - b.preferenceOrder)
-
-  return (
-    <ol className="list-decimal ml-6 space-y-1">
-      {sorted.map((pref) => (
-        <li key={pref.listingPreferenceID} className="text-sm">
-          {pref.preferenceName}
-        </li>
-      ))}
-    </ol>
-  )
+  return <PreferencesList listingPreferences={toListPreferences(preferences)} />
 }
 
 function ApplySidebar({ listing }: { listing: SerializableListing }) {
@@ -251,7 +334,7 @@ export function ListingDetail({ listing, units, preferences }: ListingDetailProp
               desktopClass="bg-primary-lighter"
             >
               <div className="listing-detail-panel">
-                <PreferencesList preferences={preferences} />
+                <PreferencesSection preferences={preferences} />
               </div>
             </ListingDetailItem>
           )}

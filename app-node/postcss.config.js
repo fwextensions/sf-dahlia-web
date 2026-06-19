@@ -13,9 +13,18 @@ const require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const wrapLayer = require("../config/webpack/loaders/wrapLayer.js")
 
-// The Tailwind entry (tailwind.css) declares the layers itself via its
-// `@import "tailwindcss"`, so it must not be wrapped.
-const themeEntry = path.join("app-node", "src", "styles", "tailwind.css")
+// Mirror the Rails webpack build (config/webpack/loaders/css.js): skip ONLY
+// theme.css, wrap every other first-party file's bare rules into `components`.
+// wrapLayer runs at OnceExit, after @tailwindcss/postcss has already expanded
+// the `@import "tailwindcss"` and consumed @theme — so what's left to wrap in the
+// tailwind entry is just base.css's bare GLOBAL rules (body, h1–h6, .site-wrapper
+// …); @import/@layer/@property stay top-level (PASSTHROUGH). This puts the global
+// element styles in `components` alongside vendored component CSS, so specificity
+// resolves them correctly (e.g. `.info-card__title` beats `h1–h6`) instead of the
+// unlayered globals beating every layer. theme.css never appears as a root in
+// app-node (it's inlined into tailwind.css), so this skip is effectively a no-op
+// here, but keeping the same predicate keeps the two builds aligned.
+const themeFile = path.join("app", "javascript", "styles", "theme.css")
 
 // Pure Tailwind v4: the theme + @source live in the imported CSS (theme.css via
 // base.css), and the vendored uic component CSS each carry their own
@@ -26,7 +35,7 @@ export default {
     tailwindPostcss(),
     wrapLayer({
       layer: "components",
-      skip: (file) => file.replace(/\\/g, "/").endsWith(themeEntry.replace(/\\/g, "/")),
+      skip: (file) => file.replace(/\\/g, "/").endsWith(themeFile.replace(/\\/g, "/")),
     }),
   ],
 }
