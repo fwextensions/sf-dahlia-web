@@ -10,8 +10,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "node .output/server/index.mjs",
-    "start:worker": "node .output/server/worker.mjs",
+    "start": "node serve.mjs",
+    "start:worker": "tsx src/worker.ts",
     "heroku-postbuild": "npm run build && npm run db:generate",
     "typecheck": "node scripts/typecheck.mjs",
     "typecheck:full": "tsc --noEmit",

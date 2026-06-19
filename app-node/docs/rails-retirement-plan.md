@@ -57,36 +57,38 @@ cheaper interim is to fix the dev CSS pipeline (e.g. adopt `@tailwindcss/vite`
 instead of the per-module `@tailwindcss/postcss` + `@reference` setup) — but
 that's optional given the native direction.
 
-### Decision 2 — Host via Nitro v2 (the vanilla TanStack Start path)
+### Decision 2 — Serve the built `fetch` handler with a zero-dep Node adapter
 
 The current `vite build` (the bare `@tanstack/react-start/plugin/vite` with no
 deployment target) emits `dist/server/server.js` — a Web **`fetch` handler**, not
-a runnable Node server. There is no `.output/` and no `index.mjs`, so the
-existing `start` / `start:worker` scripts (`node .output/server/index.mjs`) are
-dead, and `heroku-postbuild` → `npm start` can't boot.
+a runnable Node server — plus static client assets in `dist/client`. There is no
+`.output/` or `index.mjs`, so the old `start` scripts (`node
+.output/server/index.mjs`) were dead and `heroku-postbuild` → `npm start`
+couldn't boot.
 
-Decision: adopt **Nitro v2** as the build/hosting target, per the TanStack Start
-hosting guide:
-<https://tanstack.com/start/latest/docs/framework/react/guide/hosting#using-nitro-v2>
+Originally this called for adopting the **Nitro v2** vite plugin
+(`@tanstack/nitro-v2-vite-plugin`) per the TanStack hosting guide. When we went
+to implement it, Nitro v3 is the current line and the v2 plugin path adds a
+build-target dependency for what we actually need, which is just a listener in
+front of the already-working `fetch` handler. So:
 
-- Add the Nitro v2 vite plugin (`@tanstack/nitro-v2-vite-plugin`, exporting
-  `nitroV2Plugin`) alongside `tanstackStart()` in `app-node/vite.config.ts`.
-- `vite build` then emits a self-contained server at **`.output/server/index.mjs`**
-  (Nitro's `node-server` preset by default), with `.output/public` for static
-  assets.
-- Run the built site with **`node .output/server/index.mjs`** — which is exactly
-  what the current (stale) `start` script already expects, so once the plugin is
-  added the scripts become correct again. Keep `start:worker` only if the BullMQ
-  worker entry is built similarly; otherwise drop it until Phase 3.
-- This is also the right fit for the Heroku deploy the repo assumes (Node
-  buildpack, `web: node .output/server/index.mjs`), and Nitro presets give a
-  clean path to other hosts later (Node is the default; swap preset per target).
+**Decision (2026-06-19, implemented):** keep the plain `tanstackStart()` build
+and add a small zero-dependency Node adapter, `app-node/serve.mjs`, that:
+- serves `dist/client/**` as static files (hashed `/assets/*` get
+  `immutable` caching), and
+- falls through to the built `fetch` handler (`dist/server/server.js` default
+  export) for SSR, server functions, and the Rails API proxy.
 
-To-do when implementing: add the dependency + plugin, delete the
-`dist/`-vs-`.output/` mismatch, verify `node .output/server/index.mjs` serves the
-SSR'd site (and screenshot it — the only remaining unverified claim is the *built*
-site rendering, since it currently can't be run), and update `heroku-postbuild`/
-Procfile accordingly.
+Scripts are now `"start": "node serve.mjs"` and `"start:worker": "tsx
+src/worker.ts"` (the worker isn't part of the vite build; `tsx` is a runtime
+dep). `npm run build && npm start` boots and was verified serving the SSR'd
+`/listings/for-rent` (translated content + inlined i18n store) and the referenced
+client assets.
+
+Why not Nitro: nothing here needs Nitro's preset machinery yet. If we later want
+multi-host presets or want Heroku to run `node .output/server/index.mjs`, adopt
+the current Nitro plugin then — `serve.mjs` is ~150 lines and easy to drop. For
+Heroku now: Node buildpack with `web: cd app-node && npm start`.
 
 ---
 

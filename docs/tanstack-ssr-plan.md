@@ -40,7 +40,8 @@ components is not the goal — the goal is to SSR the **native rewrites** and le
 the Rails-bridged routes stay client-only until each gets a native version.
 
 > Direction note: the `RailsPage` bridge is being retired in favor of native
-> TanStack Start pages, and hosting will move to Nitro v2. See the decision
+> TanStack Start pages, and the built `fetch` handler is served by a zero-dep
+> Node adapter (`app-node/serve.mjs`) rather than Nitro. See the decision
 > record in `app-node/docs/rails-retirement-plan.md` (2026-06-19 update). The
 > bridge also causes a dev-only CSS cascade bug; native pages avoid it.
 
