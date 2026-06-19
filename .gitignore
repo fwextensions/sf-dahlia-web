@@ -80,6 +80,3 @@ storybook-static
 !.qlty/qlty.toml
 
 .eslintcache
-
-# TanStack bridge build output (source lives elsewhere)
-app-node/
