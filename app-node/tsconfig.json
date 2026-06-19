@@ -12,13 +12,13 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["vitest/globals"],
+    "types": ["vitest/globals", "vite/client"],
     "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"],
       "@uic": ["../app/javascript/components/uic/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "vite.config.ts", "../app/javascript/components/uic/**/*.ts", "../app/javascript/components/uic/**/*.tsx", "../app/assets/json/**/*.json"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "vite.config.ts", "../app/assets/json/**/*.json"],
   "exclude": ["node_modules", "dist", ".output"]
 }
