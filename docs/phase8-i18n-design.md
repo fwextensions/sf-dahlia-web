@@ -351,5 +351,42 @@ of them block SSR.
 6. **Type-safe keys.** With i18next + `i18next-scanner` (already a devDep) we could generate a key
    union for compile-time checking of `t()` keys, catching the "missing key returns the key string"
    failures (§3.5) at build time instead of runtime.
-</content>
-</invoke>
+
+7. **Trim the SSR translation payload (app-node).** The TanStack SSR path serializes a merged
+   translation bundle into each page's HTML (see `docs/tanstack-ssr-plan.md` prereq 2 and
+   `app-node/src/lib/i18n/store.ts`). **Reality check first:** the bundle is ~208KB raw but
+   **~46KB gzip / ~37KB brotli** — and the HTML response is compressed, so the real per-page cost is
+   ~37–46KB, not 208KB. Measure the compressed response before optimizing. If it's still worth it,
+   ranked options:
+
+   - **(a) Used-key capture — best fit for this codebase.** Every translation flows through the single
+     `t()` façade (`translator.ts`), so wrap it to record the keys requested during the SSR render and
+     serialize only that subset (~1–3KB/page vs ~37KB). The "needs a buffered render handler" concern
+     is avoidable: emit the used-key store as a **trailing `<script>` at the end of the streamed body**
+     (right before the client entry), not in `<head>` — both run before hydration, so it works with
+     streaming. Inherits the same module-singleton/concurrency caveat as the active instance (item 4 →
+     `AsyncLocalStorage`).
+   - **(b) Namespace splitting — the conventional answer.** Split the monolith into per-feature
+     namespaces (`common`, `listings`, `account`, `apply`…); load only what a route needs. Reference
+     impl: `next-i18next`'s `serverSideTranslations(locale, [...namespaces])`. Ports directly to
+     `buildI18nStore` (include only the route's namespaces) and also enables client lazy-loading
+     (item 5). Maintain with `i18next-parser`. More maintainable long-term; composes with (a).
+   - **(c) Compile-time extraction (Lingui / FormatJS).** True build-time tree-shaking of referenced
+     messages per entry point, but requires macros/IDs instead of `t("dotted.key")` — re-migrating the
+     ~1,880 call sites right after the polyglot→i18next move isn't worth it. Parked.
+
+   Note: the store currently inlines on **every** page including `ssr:false` bridged routes (where
+   `RailsPage` *also* fetches translations — redundant). Capture/namespaces fixes the size; deduping
+   the bridged-route double-load is a separate cleanup.
+
+8. **Dynamic (Salesforce) content is a separate system — not a bundling problem.** Listing content is
+   machine-translated server-side by `GoogleTranslationService` (`google-cloud-translate-v2`, cached in
+   `Rails.cache` via `cache_listing_translations`) and delivered as data (`RailsTranslation`), so it's
+   inherently request-scoped — keep it **out of the static i18next bundle**. As listings migrate to
+   app-node server fns: translate-on-fetch (or at ingest via `event_subscriber_translate_service`),
+   **cache in Redis** keyed by `(listingId, field, targetLang, lastModified)`, and let it ride with the
+   loader data (TanStack dehydrates loader returns automatically — no extra inlining). Quality/
+   consistency: add a **glossary** for housing/lottery domain terms and **batch** per-listing fields;
+   this needs Cloud Translation **Advanced (v3)** (the current gem is Basic v2). Separately, retire the
+   legacy client-side Google Translate widget (`app/javascript/hooks/useTranslate.tsx`, already marked
+   for deprecation) — it can't SSR and is a lower-quality parallel path.

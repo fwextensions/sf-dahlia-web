@@ -1,9 +1,99 @@
 # Plan: Retiring Rails — Moving DAHLIA Fully to TanStack Start
 
 **Status:** draft · June 2026
-**Branch context:** `jdunning/poc/tanstack-migration`
+**Branch context:** `jdunning/poc/tanstack-migration` (original) →
+`jdunning/poc/tanstack-on-i18n` (current; rebased onto the i18n/vendoring branch)
+
+---
+
+## Decision record — 2026-06-19 update
+
+Since this plan was first written, the current branch has already landed several
+of the items below, and two architectural decisions are now made. This section
+records what changed and the two decisions; the phase plan further down stays as
+the reference roadmap (parts of it are now done — noted inline where relevant).
+
+### What's already done on `jdunning/poc/tanstack-on-i18n`
+
+- **Component library vendored (Phase 4, largely done).** `@bloom-housing/ui-components`
+  is gone; components live in `app/javascript/components/uic` exported as `@uic`.
+  app-node imports `@uic`; the fork dependency, subpath aliases, `noExternal`,
+  the sass `tailwind-variables` injection, and the CJS `tailwind.config.js` shims
+  are deleted.
+- **Tailwind v4, single theme.** First-party CSS + ui-seeds are wrapped into a
+  cascade-layer order (`theme, base, seeds, components, utilities`) via the shared
+  `base.css` / `theme.css`; app-node reuses it. The `@config` injection is gone.
+- **SSR translations (SSR-plan prereqs 1–2, done).** Per-request i18next instance;
+  the server serializes a merged translation store into the HTML and the client
+  hydrates synchronously (see `docs/tanstack-ssr-plan.md`).
+- **First native SSR route.** `/listings/for-rent` renders natively (no bridge).
+
+### Decision 1 — Commit to the native rewrite; retire the `RailsPage` bridge
+
+The bridge (`src/components/RailsPage.tsx`) was always transitional. We will
+**rewrite each page as a native TanStack Start route** (like `RentDirectory`) and
+delete the bridge, rather than keep mounting the legacy react-on-rails components.
+
+Reasons:
+- **It's the destination.** The goal is to run on TanStack Start (SPA or SSR);
+  the bridge is a parity shim, not the architecture.
+- **It unblocks SSR.** Bridged routes are stuck at `ssr: false`; native routes
+  SSR (or SPA) per route.
+- **It fixes a dev-only CSS cascade bug.** The bridge dynamically imports the
+  Rails page + its `@uic` CSS on the **client at runtime**, producing ~60+
+  injected `<style>` tags whose ordering breaks the Tailwind v4 cascade layers in
+  the Vite **dev server** — e.g. preflight's `*{padding:0}` (`@layer base`) beats
+  `.hero`'s padding (`@layer components`), collapsing the hero. Native routes
+  route all CSS through the static SSR module graph and render correctly in dev
+  **and** prod. (Confirmed: native `/listings/for-rent` is correct in dev; the
+  bridged home page is broken in dev only. The production `vite build` output is
+  correct for both because it concatenates one correctly-ordered stylesheet.)
+
+Consequence / scope: this is essentially completing the migration — each bridged
+page needs a native rewrite. It's incremental and per-route (Phase 2 step 3
+below). Bridged pages remain rough **in local dev only** until rewritten; prod is
+unaffected. If the dev experience on not-yet-migrated pages becomes painful, the
+cheaper interim is to fix the dev CSS pipeline (e.g. adopt `@tailwindcss/vite`
+instead of the per-module `@tailwindcss/postcss` + `@reference` setup) — but
+that's optional given the native direction.
+
+### Decision 2 — Host via Nitro v2 (the vanilla TanStack Start path)
+
+The current `vite build` (the bare `@tanstack/react-start/plugin/vite` with no
+deployment target) emits `dist/server/server.js` — a Web **`fetch` handler**, not
+a runnable Node server. There is no `.output/` and no `index.mjs`, so the
+existing `start` / `start:worker` scripts (`node .output/server/index.mjs`) are
+dead, and `heroku-postbuild` → `npm start` can't boot.
+
+Decision: adopt **Nitro v2** as the build/hosting target, per the TanStack Start
+hosting guide:
+<https://tanstack.com/start/latest/docs/framework/react/guide/hosting#using-nitro-v2>
+
+- Add the Nitro v2 vite plugin (`@tanstack/nitro-v2-vite-plugin`, exporting
+  `nitroV2Plugin`) alongside `tanstackStart()` in `app-node/vite.config.ts`.
+- `vite build` then emits a self-contained server at **`.output/server/index.mjs`**
+  (Nitro's `node-server` preset by default), with `.output/public` for static
+  assets.
+- Run the built site with **`node .output/server/index.mjs`** — which is exactly
+  what the current (stale) `start` script already expects, so once the plugin is
+  added the scripts become correct again. Keep `start:worker` only if the BullMQ
+  worker entry is built similarly; otherwise drop it until Phase 3.
+- This is also the right fit for the Heroku deploy the repo assumes (Node
+  buildpack, `web: node .output/server/index.mjs`), and Nitro presets give a
+  clean path to other hosts later (Node is the default; swap preset per target).
+
+To-do when implementing: add the dependency + plugin, delete the
+`dist/`-vs-`.output/` mismatch, verify `node .output/server/index.mjs` serves the
+SSR'd site (and screenshot it — the only remaining unverified claim is the *built*
+site rendering, since it currently can't be run), and update `heroku-postbuild`/
+Procfile accordingly.
+
+---
 
 ## Where we are today
+
+> Note: the "today" below describes the **original** POC (`tanstack-migration`)
+> before vendoring + SSR; see the decision record above for the current state.
 
 The POC proved visual parity: app-node serves every public page by mounting the
 *original* react-on-rails components from `app/javascript` via the

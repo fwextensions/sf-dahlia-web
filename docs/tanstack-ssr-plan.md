@@ -39,6 +39,11 @@ at module-eval time and (b) load translations on the client. SSR of *those*
 components is not the goal — the goal is to SSR the **native rewrites** and let
 the Rails-bridged routes stay client-only until each gets a native version.
 
+> Direction note: the `RailsPage` bridge is being retired in favor of native
+> TanStack Start pages, and hosting will move to Nitro v2. See the decision
+> record in `app-node/docs/rails-retirement-plan.md` (2026-06-19 update). The
+> bridge also causes a dev-only CSS cascade bug; native pages avoid it.
+
 ## Strategy: SSR the native pages (Track A)
 
 Per page that has a native rewrite, convert its route from a `RailsPage` bridge to:
