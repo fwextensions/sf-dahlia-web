@@ -12,12 +12,11 @@ import { evaluateRedirects } from "../lib/routing/redirects"
 import { getClientEnvScript } from "../config/clientEnv"
 
 // Import global styles - Vite injects these as a blocking <link> in <head> during SSR,
-// ensuring styles are loaded before first paint (CLS < 0.1)
-// tailwind.css must come first: it emits preflight + generated utilities.
-// base.scss is imported as its own module (not via globals.scss) so the
-// bloom-tailwind-shim plugin can strip its Tailwind v3 directives.
+// ensuring styles are loaded before first paint (CLS < 0.1).
+// tailwind.css is the Tailwind v4 entry: it pulls in the shared Rails base.css
+// (theme + tokens + first-party globals) and emits preflight + utilities.
+// globals.scss layers in the ui-seeds global styles.
 import "../styles/tailwind.css"
-import "../../../app/javascript/components/base.scss"
 import "../styles/globals.scss"
 
 // Clerk requires a publishable key. When running locally without one configured,

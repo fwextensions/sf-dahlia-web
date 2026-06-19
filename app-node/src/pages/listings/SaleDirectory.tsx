@@ -11,7 +11,7 @@ import {
   Icon,
   ListingCard,
   t,
-} from "@bloom-housing/ui-components"
+} from "@uic"
 import dayjs from "dayjs"
 import type { SerializableListing } from "../../lib/listings/server-fns"
 import { ListingsGroupHeader } from "./components/ListingsGroupHeader"

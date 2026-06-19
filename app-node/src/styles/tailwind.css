@@ -1,8 +1,15 @@
 /*
- * Tailwind v4 entry point. The @config / @reference directives are injected
- * by the plugin in postcss.config.js; this import emits preflight and the
- * utilities generated from the content paths in tailwind.config.ts.
- * Imported in __root.tsx before globals.scss so component styles can
- * override the generated utilities where needed.
+ * Tailwind v4 entry for app-node.
+ *
+ * Reuses the Rails app's base.css — the single source of the Tailwind theme
+ * (it @imports styles/theme.css, which does `@import "tailwindcss"`, declares
+ * the @theme + cascade layers, and `@source`s app/javascript) plus the design
+ * tokens and first-party global styles. Importing it here means app-node and
+ * the Rails webpack build share one theme + global stylesheet.
+ *
+ * base.css's @source only scans app/javascript, so we additionally scan
+ * app-node's own source tree for utility class usage (paths are relative to
+ * this file: ../ is app-node/src).
  */
-@import "tailwindcss";
+@import "../../../app/javascript/components/base.css";
+@source "../**/*.{ts,tsx}";

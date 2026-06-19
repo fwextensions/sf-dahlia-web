@@ -17,7 +17,7 @@ import {
   SiteAlert,
   StandardTable,
   t,
-} from "@bloom-housing/ui-components"
+} from "@uic"
 import { Message } from "@bloom-housing/ui-seeds"
 import dayjs from "dayjs"
 import type {

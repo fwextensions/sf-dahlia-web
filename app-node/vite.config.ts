@@ -1,23 +1,16 @@
-import { defineConfig, type Plugin } from "vite"
+import { defineConfig } from "vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
 import tsconfigPaths from "vite-tsconfig-paths"
 import path from "node:path"
 import fs from "node:fs"
-import { createRequire } from "node:module"
-
-const require = createRequire(import.meta.url)
 
 const repoRoot = path.resolve(__dirname, "..")
 
-// Root of the installed @bloom-housing/ui-components package (the
-// fwextensions fork, installed from GitHub — see package.json). Resolved
-// dynamically so no machine-specific paths live in the repo. We alias
-// subpath imports through this because the package's `exports` map only
-// exposes a handful of files, while app/javascript imports many src/** paths.
-const bloomUiDir = path.dirname(
-  require.resolve("@bloom-housing/ui-components", { paths: [__dirname] })
-)
+// The vendored ui-components source ("@uic") lives in the Rails tree. app-node
+// renders the real Rails pages (via the RailsPage bridge) and its own pages
+// both import components from here.
+const uicEntry = path.resolve(repoRoot, "app/javascript/components/uic/index.ts")
 
 /**
  * Read selected variables from the repo-root .env (where the Rails frontend
@@ -81,54 +74,6 @@ const railsEnvDefine = Object.fromEntries(
   ])
 )
 
-/**
- * Vite plugin that intercepts @bloom-housing/ui-components/tailwind.config.js
- * at the load stage. That file uses module.exports (CJS), which crashes the
- * Vite SSR module runner with "module is not defined". We replace it with
- * ESM-compatible code that exports the same breakpoint data.
- */
-function bloomTailwindShimPlugin(): Plugin {
-  const BLOOM_TAILWIND_SUFFIX = path.join(
-    "@bloom-housing",
-    "ui-components",
-    "tailwind.config.js"
-  )
-  return {
-    name: "bloom-tailwind-shim",
-    load(id) {
-      // Strip any query suffix (e.g. ?v=hash on files inside node_modules)
-      // so the suffix matching below works.
-      const normalized = id.replace(/\\/g, "/").split("?")[0]
-      // DAHLIA's base.scss carries Tailwind v3 `@tailwind` directives for the
-      // Rails webpack build. app-node uses Tailwind v4 (preflight + utilities
-      // come from src/styles/tailwind.css), so strip the directives here
-      // without touching the shared file.
-      if (normalized.endsWith("app/javascript/components/base.scss")) {
-        const source = fs.readFileSync(id.split("?")[0], "utf8")
-        return source.replace(/^@tailwind\s+\w+;/gm, "")
-      }
-      if (
-        id.endsWith(BLOOM_TAILWIND_SUFFIX) ||
-        normalized.endsWith("@bloom-housing/ui-components/tailwind.config.js")
-      ) {
-        return `
-export const theme = {
-  screens: {
-    sm: "640px",
-    md: "768px",
-    lg: "1200px",
-    xl: "1280px",
-    "2xl": "1440px",
-    print: { raw: "print" },
-  },
-};
-export default { theme };
-`
-      }
-    },
-  }
-}
-
 export default defineConfig({
   define: railsEnvDefine,
   server: {
@@ -161,38 +106,12 @@ export default defineConfig({
       "@tanstack/react-start",
       "@tanstack/react-start/server",
       "@tanstack/react-start/client",
-      // Aliased to the local fork checkout (compiled from TS/SCSS source by
-      // Vite) — esbuild prebundling can't process its .scss imports.
-      "@bloom-housing/ui-components",
     ],
-    // Because @bloom-housing/ui-components is excluded (compiled from
-    // source), Vite doesn't automatically pre-bundle its dependencies.
-    // Include all of its runtime deps (plus key transitive CJS deps) so
-    // default/named imports get ESM interop.
-    include: [
-      ...Object.keys(
-        JSON.parse(fs.readFileSync(path.join(bloomUiDir, "package.json"), "utf8"))
-          .dependencies ?? {}
-      ).filter(
-        (dep) =>
-          ![
-            "react",
-            "react-dom",
-            "tailwindcss",
-            "@tailwindcss/postcss",
-            // Pure ESM with subpath exports — pre-bundling the bare entry
-            // triggers an endless re-optimization loop on the subpaths.
-            "@dnd-kit/react",
-          ].includes(dep)
-      ),
-      "prop-types",
-      "react-dropzone",
-      // CJS subpath used by the fork's ContactAddress.tsx
-      "react-dom/server",
-    ],
+    // CJS subpath used by the vendored uic ContactAddress.tsx — pre-bundle it
+    // so the default import gets ESM interop.
+    include: ["react-dom/server"],
   },
   plugins: [
-    bloomTailwindShimPlugin(),
     tsconfigPaths(),
     tanstackStart({
       server: {
@@ -209,7 +128,6 @@ export default defineConfig({
     dedupe: [
       "react",
       "react-dom",
-      "@bloom-housing/ui-components",
       "@bloom-housing/ui-seeds",
       "react-helmet-async",
       "dayjs",
@@ -220,51 +138,19 @@ export default defineConfig({
         find: "@tanstack/react-start/server",
         replacement: path.resolve(__dirname, "src/lib/shims/tanstack-start-server.ts"),
       },
-      // @bloom-housing/ui-components/tailwind.config.js uses module.exports (CJS).
-      // ResponsiveWrappers.tsx imports it via a relative path (../../tailwind.config.js),
-      // so we match by absolute path using a regex. The SSR module runner treats all
-      // files as ESM and crashes on module.exports — this shim re-exports the same
-      // breakpoint data as proper ESM.
-      // Note: use both / and \\ to handle Windows and Unix path separators.
+      // Vendored ui-components source. app-node's own pages and the Rails pages
+      // it renders both import components from "@uic".
       {
-        find: /[/\\]@bloom-housing[/\\]ui-components[/\\]tailwind\.config\.js$/,
-        replacement: path.resolve(__dirname, "src/lib/shims/bloom-tailwind-config.ts"),
-      },
-      // The ui-components fork (installed from GitHub) compiles from TS/SCSS
-      // source. Route subpath imports (e.g. .../src/global/forms.scss) through
-      // the package directory directly, since its `exports` map only exposes
-      // a handful of entry points.
-      {
-        find: /^@bloom-housing\/ui-components$/,
-        replacement: path.join(bloomUiDir, "index.ts"),
-      },
-      {
-        find: /^@bloom-housing\/ui-components\//,
-        replacement: bloomUiDir + "/",
-      },
-      // react-dropzone v11 ships CJS as its main entry and ESM under dist/es/.
-      // The SSR module runner picks up the CJS build and fails on named imports.
-      // Alias to the ESM build so both browser and SSR get proper named exports.
-      {
-        find: "react-dropzone",
-        replacement: path.resolve(__dirname, "node_modules/react-dropzone/dist/es/index.js"),
+        find: /^@uic$/,
+        replacement: uicEntry,
       },
     ],
   },
   css: {
     preprocessorOptions: {
       scss: {
-        // Silence Sass @import deprecation warnings from Bloom UI library internals
+        // Silence Sass @import deprecation warnings from ui-seeds internals.
         silenceDeprecations: ["import"],
-        // Make the $tailwind-* / $screen-* Sass variables available globally.
-        // DAHLIA's app/javascript scss expects them as globals (the Rails
-        // webpack build prepends a generated file via tailwind.tosass.js).
-        // The ui-components fork ships the same file, so @use it everywhere;
-        // Sass dedupes repeat loads of the same canonical file, so this is
-        // safe even for fork files that already @use it themselves.
-        additionalData: `@use "${path
-          .join(bloomUiDir, "src/global/tailwind-variables.scss")
-          .replace(/\\/g, "/")}" as *;\n`,
       },
     },
   },
@@ -287,16 +173,5 @@ export default defineConfig({
         },
       },
     },
-    ssr: {
-      // Force Vite to bundle @bloom-housing/ui-components through its module
-      // resolver so that alias rules (tailwind.config.js shim) are applied.
-      // Without noExternal, Vite skips aliasing for node_modules in SSR.
-      noExternal: ["@bloom-housing/ui-components"],
-    },
-  },
-  ssr: {
-    // Same as environments.ssr.noExternal — required for Vite 5/6 compat layer
-    // to ensure the tailwind.config.js alias is applied during SSR module loading.
-    noExternal: ["@bloom-housing/ui-components"],
   },
 })

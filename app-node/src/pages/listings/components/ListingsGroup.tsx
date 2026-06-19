@@ -4,7 +4,7 @@
  * Removes the intersection-observer wiring; manages its own open/closed state.
  */
 import { useState, type ReactNode } from "react"
-import { Button, Icon, type UniversalIconType } from "@bloom-housing/ui-components"
+import { Button, Icon, type UniversalIconType } from "@uic"
 
 interface ListingsGroupProps {
   children?: ReactNode

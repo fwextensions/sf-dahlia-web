@@ -15,9 +15,10 @@
     "types": ["vitest/globals"],
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "@uic": ["../app/javascript/components/uic/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "vite.config.ts", "../app/assets/json/**/*.json"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "vite.config.ts", "../app/javascript/components/uic/**/*.ts", "../app/javascript/components/uic/**/*.tsx", "../app/assets/json/**/*.json"],
   "exclude": ["node_modules", "dist", ".output"]
 }

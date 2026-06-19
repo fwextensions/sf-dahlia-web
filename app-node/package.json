@@ -23,7 +23,6 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1057.0",
     "@aws-sdk/s3-request-presigner": "^3.1057.0",
-    "@bloom-housing/ui-components": "github:fwextensions/ui-components#chore/update-ts6",
     "@bloom-housing/ui-seeds": "^3.4.3",
     "@clerk/tanstack-react-start": "^0.14.0",
     "@prisma/client": "^5.22.0",

@@ -2,7 +2,7 @@
  * EmptyListingsView — shown when a listings section has no listings.
  * Adapted from app/javascript/modules/listings/components/EmptyListingsView.tsx.
  */
-import { Icon, t } from "@bloom-housing/ui-components"
+import { Icon, t } from "@uic"
 import { Heading } from "@bloom-housing/ui-seeds"
 
 type DirectoryType = "forRent" | "forSale"
