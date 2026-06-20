@@ -22,9 +22,11 @@ import {
   type StackedDataFxnType,
 } from "../../../../app/javascript/modules/listings/DirectoryHelpers"
 import { defaultIfNotTranslated } from "../../../../app/javascript/util/languageUtil"
+import { useState } from "react"
 import { ListingsGroupHeader } from "./components/ListingsGroupHeader"
 import { ListingsGroup } from "./components/ListingsGroup"
 import { EmptyListingsView } from "./components/EmptyListingsView"
+import { DirectorySectionNav } from "./components/DirectorySectionNav"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -179,11 +181,19 @@ interface SaleDirectoryProps {
 
 export function SaleDirectory({ listings }: SaleDirectoryProps) {
   const { open, fcfs, upcoming, results } = sortListings(listings)
+  // Collapsible sections start closed; the nav bar expands them on click.
+  const [upcomingOpen, setUpcomingOpen] = useState(false)
+  const [resultsOpen, setResultsOpen] = useState(false)
+
+  const handleNavigate = (sectionKey: string) => {
+    if (sectionKey === "upcoming") setUpcomingOpen(true)
+    if (sectionKey === "results") setResultsOpen(true)
+  }
 
   return (
     <div>
-      {/* Page header */}
-      <div className="page-header">
+      {/* id="page-header" is observed by the section nav for sticky/scroll-spy. */}
+      <div id="page-header" className="page-header">
         <div className="buy-header_columns max-w-5xl mx-auto px-6 py-8">
           <Heading className="buy-header_title buy-header_left_col">
             {t("saleDirectory.title")}
@@ -195,6 +205,12 @@ export function SaleDirectory({ listings }: SaleDirectoryProps) {
           </div>
         </div>
       </div>
+
+      <DirectorySectionNav
+        directoryType="forSale"
+        groups={{ open, fcfs, upcoming, results }}
+        onNavigate={handleNavigate}
+      />
 
       <div id="listing-results">
         {/* Open lottery listings */}
@@ -243,6 +259,8 @@ export function SaleDirectory({ listings }: SaleDirectoryProps) {
           showButtonText={t("listings.upcomingLotteries.show")}
           info={t("listings.upcomingLotteries.subtitle")}
           refKey="upcoming-lotteries"
+          open={upcomingOpen}
+          onToggle={() => setUpcomingOpen((v) => !v)}
         >
           {upcoming.length > 0 ? (
             getListingCards(upcoming)
@@ -260,6 +278,8 @@ export function SaleDirectory({ listings }: SaleDirectoryProps) {
           info={t("listings.lotteryResults.subtitle")}
           icon="result"
           refKey="lottery-results"
+          open={resultsOpen}
+          onToggle={() => setResultsOpen((v) => !v)}
         >
           {results.length > 0 ? (
             getListingCards(results)

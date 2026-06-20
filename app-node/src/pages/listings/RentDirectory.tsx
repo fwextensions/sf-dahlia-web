@@ -25,9 +25,11 @@ import {
   type StackedDataFxnType,
 } from "../../../../app/javascript/modules/listings/DirectoryHelpers"
 import { defaultIfNotTranslated } from "../../../../app/javascript/util/languageUtil"
+import { useState } from "react"
 import { ListingsGroupHeader } from "./components/ListingsGroupHeader"
 import { ListingsGroup } from "./components/ListingsGroup"
 import { EmptyListingsView } from "./components/EmptyListingsView"
+import { DirectorySectionNav } from "./components/DirectorySectionNav"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -138,22 +140,39 @@ interface RentDirectoryProps {
 
 export function RentDirectory({ listings }: RentDirectoryProps) {
   const { open, upcoming, results } = sortListings(listings)
+  // Collapsible sections start closed; the nav bar expands them on click.
+  const [upcomingOpen, setUpcomingOpen] = useState(false)
+  const [resultsOpen, setResultsOpen] = useState(false)
+
+  const handleNavigate = (sectionKey: string) => {
+    if (sectionKey === "upcoming") setUpcomingOpen(true)
+    if (sectionKey === "results") setResultsOpen(true)
+  }
 
   return (
     <div>
-      <PageHeader
-        title={t("rentalDirectory.title")}
-        subtitle={t("rentalDirectory.ifYouTellUs")}
-      >
-        <p className="mt-4 md:mt-8 mb-2">
-          <LinkButton href="/eligibility-estimator">
-            {t("rentalDirectory.findMatchingListings")}
-          </LinkButton>
-        </p>
-        <a className="text-base text-primary-dark" href="/help-calculating-income">
-          {t("rentalDirectory.orGetHelpCalculating")}
-        </a>
-      </PageHeader>
+      {/* id="page-header" is observed by the section nav for sticky/scroll-spy. */}
+      <div id="page-header">
+        <PageHeader
+          title={t("rentalDirectory.title")}
+          subtitle={t("rentalDirectory.ifYouTellUs")}
+        >
+          <p className="mt-4 md:mt-8 mb-2">
+            <LinkButton href="/eligibility-estimator">
+              {t("rentalDirectory.findMatchingListings")}
+            </LinkButton>
+          </p>
+          <a className="text-base text-primary-dark" href="/help-calculating-income">
+            {t("rentalDirectory.orGetHelpCalculating")}
+          </a>
+        </PageHeader>
+      </div>
+
+      <DirectorySectionNav
+        directoryType="forRent"
+        groups={{ open, upcoming, results }}
+        onNavigate={handleNavigate}
+      />
 
       <div id="listing-results">
         {/* Open listings */}
@@ -180,6 +199,8 @@ export function RentDirectory({ listings }: RentDirectoryProps) {
           showButtonText={t("listings.upcomingLotteries.show")}
           info={t("listings.upcomingLotteries.subtitle")}
           refKey="upcoming-lotteries"
+          open={upcomingOpen}
+          onToggle={() => setUpcomingOpen((v) => !v)}
         >
           {upcoming.length > 0 ? (
             getListingCards(upcoming)
@@ -197,6 +218,8 @@ export function RentDirectory({ listings }: RentDirectoryProps) {
           info={t("listings.lotteryResults.subtitle")}
           icon="result"
           refKey="lottery-results"
+          open={resultsOpen}
+          onToggle={() => setResultsOpen((v) => !v)}
         >
           {results.length > 0 ? (
             getListingCards(results)

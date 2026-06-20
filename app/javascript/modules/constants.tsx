@@ -143,6 +143,7 @@ export const DIRECTORY_SECTION_INFO = {
   },
   fcfs: {
     ref: "buy-now",
+    icon: "houseCircleCheck",
   },
   additional: {
     ref: "additional-listings",

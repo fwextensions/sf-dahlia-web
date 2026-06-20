@@ -39,5 +39,6 @@
 @import "../../../app/javascript/modules/listings/ListingsGroupHeader.css";
 @import "../../../app/javascript/modules/listings/ListingDirectory.css";
 @import "../../../app/javascript/modules/listings/BuyHeader.css";
+@import "../../../app/javascript/modules/listings/DirectoryPageNavigationBar.css";
 
 @source "../**/*.{ts,tsx}";

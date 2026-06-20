@@ -15,8 +15,15 @@ interface ListingsGroupProps {
   info?: string
   listingsCount: number
   refKey?: string
-  /** If provided, the group starts expanded */
+  /** If provided, the group starts expanded (uncontrolled mode only) */
   defaultOpen?: boolean
+  /**
+   * Controlled open state. When provided (with onToggle), the parent owns the
+   * open/closed state — used so the section nav bar can expand a collapsed
+   * section on click. Omit both for self-managed (uncontrolled) behavior.
+   */
+  open?: boolean
+  onToggle?: () => void
 }
 
 export function ListingsGroup({
@@ -29,8 +36,12 @@ export function ListingsGroup({
   listingsCount,
   refKey,
   defaultOpen = false,
+  open,
+  onToggle,
 }: ListingsGroupProps) {
-  const [showListings, setShowListings] = useState(defaultOpen)
+  const [internalOpen, setInternalOpen] = useState(defaultOpen)
+  const showListings = open ?? internalOpen
+  const toggle = () => (onToggle ? onToggle() : setInternalOpen((v) => !v))
 
   return (
     <div className="listings-group" id={refKey ?? header}>
@@ -45,7 +56,7 @@ export function ListingsGroup({
           </div>
         </div>
         <div className="listings-group__button">
-          <Button className="w-full" onClick={() => setShowListings(!showListings)}>
+          <Button className="w-full" onClick={toggle}>
             {showListings
               ? `${hideButtonText} (${listingsCount})`
               : `${showButtonText} (${listingsCount})`}
