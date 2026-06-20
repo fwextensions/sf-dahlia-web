@@ -161,35 +161,21 @@ export interface ListingDetailLoaderData {
 // ============================================================
 
 async function getServerDeps() {
-  const { default: Redis } = await import("ioredis")
-  const { env } = await import("../../config/env")
   const { createCacheService } = await import("../cache/cache-service")
   const { createSalesforceProxyClient } = await import("../salesforce/client")
   const { withRetry } = await import("../salesforce/retry")
+  const { getRedis } = await import("../cache/redis")
 
-  const redis = new Redis(env.REDIS_URL, {
-    maxRetriesPerRequest: null,
-    // Fail fast — 500ms connection timeout, no retries
-    // so a missing Redis never blocks the request path
-    connectTimeout: 500,
-    retryStrategy: () => null,
-    // Don't queue commands when disconnected — they reject immediately
-    // and cache-service catches them as a cache miss
-    enableOfflineQueue: false,
-    lazyConnect: true,
-  })
-  // Attach error handler so connection failures don't become unhandled events
-  redis.on("error", () => {
-    // Redis unavailable — cache bypassed, data fetched directly from Salesforce
-  })
-  // Fire-and-forget: don't await so a missing Redis never blocks the request.
-  redis.connect().catch(() => {
-    // Redis unavailable — cache will be bypassed, data fetched directly
-  })
+  // Shared singleton client. Await the connection settling so the FIRST cache
+  // read hits a ready socket instead of throwing (see cache/redis.ts). After the
+  // first call `ready` is already resolved, so this await is effectively free.
+  const { client: redis, ready } = getRedis()
+  await ready
+
   const cacheService = createCacheService(redis)
   const proxyClient = createSalesforceProxyClient()
 
-  return { redis, cacheService, proxyClient, withRetry }
+  return { cacheService, proxyClient, withRetry }
 }
 
 // ============================================================
@@ -203,8 +189,7 @@ async function getServerDeps() {
 export const getListings = createServerFn({ method: "GET" })
   .inputValidator((data: ListingsInput) => data)
   .handler(async ({ data }): Promise<ListingsLoaderData> => {
-    const { redis, cacheService, proxyClient, withRetry } =
-      await getServerDeps()
+    const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
     try {
       const fetchParams: ListingsParams = {
@@ -237,12 +222,6 @@ export const getListings = createServerFn({ method: "GET" })
     } catch (err) {
       console.error("[getListings] Failed to fetch listings:", err)
       throw err
-    } finally {
-      try {
-        await redis.quit()
-      } catch {
-        // Redis wasn't connected — nothing to quit
-      }
     }
   })
 
@@ -257,30 +236,23 @@ export const getListings = createServerFn({ method: "GET" })
 export const getListingDetail = createServerFn({ method: "GET" })
   .inputValidator((data: ListingDetailInput) => data)
   .handler(async ({ data }): Promise<SerializableListing> => {
-    const { redis, cacheService, proxyClient, withRetry } =
-      await getServerDeps()
+    const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
-    try {
-      const endpoint = `/api/v1/listings/${data.id}`
-      const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
+    const endpoint = `/api/v1/listings/${data.id}`
+    const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
 
-      const listing = await cacheService.cachedGet<SerializableListing>(
-        endpoint,
-        undefined,
-        data.force ?? false,
-        async () => {
-          const result = await withRetry(
-            () => proxyClient.listings.getById(data.id, data.force),
-            { cacheService, cacheKey }
-          )
-          return { data: result as unknown as SerializableListing, status: 200 }
-        }
-      )
-
-      return listing
-    } finally {
-      try { await redis.quit() } catch { /* Redis was not connected */ }
-    }
+    return cacheService.cachedGet<SerializableListing>(
+      endpoint,
+      undefined,
+      data.force ?? false,
+      async () => {
+        const result = await withRetry(
+          () => proxyClient.listings.getById(data.id, data.force),
+          { cacheService, cacheKey }
+        )
+        return { data: result as unknown as SerializableListing, status: 200 }
+      }
+    )
   })
 
 // ============================================================
@@ -293,30 +265,23 @@ export const getListingDetail = createServerFn({ method: "GET" })
 export const getListingUnits = createServerFn({ method: "GET" })
   .inputValidator((data: ListingByIdInput) => data)
   .handler(async ({ data }): Promise<SerializableUnit[]> => {
-    const { redis, cacheService, proxyClient, withRetry } =
-      await getServerDeps()
+    const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
-    try {
-      const endpoint = `/api/v1/listings/${data.id}/units`
-      const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
+    const endpoint = `/api/v1/listings/${data.id}/units`
+    const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
 
-      const units = await cacheService.cachedGet<SerializableUnit[]>(
-        endpoint,
-        undefined,
-        false,
-        async () => {
-          const result = await withRetry(
-            () => proxyClient.listings.getUnits(data.id),
-            { cacheService, cacheKey }
-          )
-          return { data: result as unknown as SerializableUnit[], status: 200 }
-        }
-      )
-
-      return units
-    } finally {
-      try { await redis.quit() } catch { /* Redis was not connected */ }
-    }
+    return cacheService.cachedGet<SerializableUnit[]>(
+      endpoint,
+      undefined,
+      false,
+      async () => {
+        const result = await withRetry(
+          () => proxyClient.listings.getUnits(data.id),
+          { cacheService, cacheKey }
+        )
+        return { data: result as unknown as SerializableUnit[], status: 200 }
+      }
+    )
   })
 
 // ============================================================
@@ -329,30 +294,23 @@ export const getListingUnits = createServerFn({ method: "GET" })
 export const getListingPreferences = createServerFn({ method: "GET" })
   .inputValidator((data: ListingByIdInput) => data)
   .handler(async ({ data }): Promise<SerializablePreference[]> => {
-    const { redis, cacheService, proxyClient, withRetry } =
-      await getServerDeps()
+    const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
-    try {
-      const endpoint = `/api/v1/listings/${data.id}/preferences`
-      const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
+    const endpoint = `/api/v1/listings/${data.id}/preferences`
+    const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
 
-      const preferences = await cacheService.cachedGet<SerializablePreference[]>(
-        endpoint,
-        undefined,
-        false,
-        async () => {
-          const result = await withRetry(
-            () => proxyClient.listings.getPreferences(data.id),
-            { cacheService, cacheKey }
-          )
-          return { data: result as unknown as SerializablePreference[], status: 200 }
-        }
-      )
-
-      return preferences
-    } finally {
-      try { await redis.quit() } catch { /* Redis was not connected */ }
-    }
+    return cacheService.cachedGet<SerializablePreference[]>(
+      endpoint,
+      undefined,
+      false,
+      async () => {
+        const result = await withRetry(
+          () => proxyClient.listings.getPreferences(data.id),
+          { cacheService, cacheKey }
+        )
+        return { data: result as unknown as SerializablePreference[], status: 200 }
+      }
+    )
   })
 
 // ============================================================
@@ -366,30 +324,23 @@ export const getListingPreferences = createServerFn({ method: "GET" })
 export const getListingLotteryBuckets = createServerFn({ method: "GET" })
   .inputValidator((data: ListingByIdInput) => data)
   .handler(async ({ data }): Promise<SerializableLotteryBucket[]> => {
-    const { redis, cacheService, proxyClient, withRetry } =
-      await getServerDeps()
+    const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
-    try {
-      const endpoint = `/api/v1/listings/${data.id}/lottery_buckets`
-      const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
+    const endpoint = `/api/v1/listings/${data.id}/lottery_buckets`
+    const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
 
-      const buckets = await cacheService.cachedGet<SerializableLotteryBucket[]>(
-        endpoint,
-        undefined,
-        false,
-        async () => {
-          const result = await withRetry(
-            () => proxyClient.listings.getLotteryBuckets(data.id),
-            { cacheService, cacheKey }
-          )
-          return { data: result as unknown as SerializableLotteryBucket[], status: 200 }
-        }
-      )
-
-      return buckets
-    } finally {
-      try { await redis.quit() } catch { /* Redis was not connected */ }
-    }
+    return cacheService.cachedGet<SerializableLotteryBucket[]>(
+      endpoint,
+      undefined,
+      false,
+      async () => {
+        const result = await withRetry(
+          () => proxyClient.listings.getLotteryBuckets(data.id),
+          { cacheService, cacheKey }
+        )
+        return { data: result as unknown as SerializableLotteryBucket[], status: 200 }
+      }
+    )
   })
 
 // ============================================================
@@ -403,31 +354,24 @@ export const getListingLotteryBuckets = createServerFn({ method: "GET" })
 export const getListingLotteryRanking = createServerFn({ method: "GET" })
   .inputValidator((data: LotteryRankingInput) => data)
   .handler(async ({ data }): Promise<SerializableLotteryRanking> => {
-    const { redis, cacheService, proxyClient, withRetry } =
-      await getServerDeps()
+    const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
-    try {
-      const params: Record<string, string> = { lottery_number: data.lotteryNumber }
-      const endpoint = `/api/v1/listings/${data.id}/lottery_ranking`
-      const cacheKey = cacheService.generateCacheKey(endpoint, params)
+    const params: Record<string, string> = { lottery_number: data.lotteryNumber }
+    const endpoint = `/api/v1/listings/${data.id}/lottery_ranking`
+    const cacheKey = cacheService.generateCacheKey(endpoint, params)
 
-      const ranking = await cacheService.cachedGet<SerializableLotteryRanking>(
-        endpoint,
-        params,
-        false,
-        async () => {
-          const result = await withRetry(
-            () => proxyClient.listings.getLotteryRanking(data.id, data.lotteryNumber),
-            { cacheService, cacheKey }
-          )
-          return { data: result as unknown as SerializableLotteryRanking, status: 200 }
-        }
-      )
-
-      return ranking
-    } finally {
-      try { await redis.quit() } catch { /* Redis was not connected */ }
-    }
+    return cacheService.cachedGet<SerializableLotteryRanking>(
+      endpoint,
+      params,
+      false,
+      async () => {
+        const result = await withRetry(
+          () => proxyClient.listings.getLotteryRanking(data.id, data.lotteryNumber),
+          { cacheService, cacheKey }
+        )
+        return { data: result as unknown as SerializableLotteryRanking, status: 200 }
+      }
+    )
   })
 
 // ============================================================
@@ -441,35 +385,29 @@ export const getListingLotteryRanking = createServerFn({ method: "GET" })
 export const getAmiData = createServerFn({ method: "GET" })
   .inputValidator((data: AmiInput) => data)
   .handler(async ({ data }): Promise<SerializableAmiLevel[]> => {
-    const { redis, cacheService, proxyClient, withRetry } =
-      await getServerDeps()
+    const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
-    try {
-      const params: Record<string, string> = {}
-      if (data.chartType) params.chartType = data.chartType
-      if (data.chartYear) params.chartYear = data.chartYear
-      if (data.percent !== undefined) params.percent = String(data.percent)
+    const params: Record<string, string> = {}
+    if (data.chartType) params.chartType = data.chartType
+    if (data.chartYear) params.chartYear = data.chartYear
+    if (data.percent !== undefined) params.percent = String(data.percent)
 
-      const endpoint = "/api/v1/listings/ami"
-      const cacheKey = cacheService.generateCacheKey(endpoint, Object.keys(params).length > 0 ? params : undefined)
+    const endpoint = "/api/v1/listings/ami"
+    const cacheParams = Object.keys(params).length > 0 ? params : undefined
+    const cacheKey = cacheService.generateCacheKey(endpoint, cacheParams)
 
-      const amiLevels = await cacheService.cachedGet<SerializableAmiLevel[]>(
-        endpoint,
-        Object.keys(params).length > 0 ? params : undefined,
-        false,
-        async () => {
-          const result = await withRetry(
-            () => proxyClient.listings.getAmi(data),
-            { cacheService, cacheKey }
-          )
-          return { data: result as unknown as SerializableAmiLevel[], status: 200 }
-        }
-      )
-
-      return amiLevels
-    } finally {
-      try { await redis.quit() } catch { /* Redis was not connected */ }
-    }
+    return cacheService.cachedGet<SerializableAmiLevel[]>(
+      endpoint,
+      cacheParams,
+      false,
+      async () => {
+        const result = await withRetry(
+          () => proxyClient.listings.getAmi(data),
+          { cacheService, cacheKey }
+        )
+        return { data: result as unknown as SerializableAmiLevel[], status: 200 }
+      }
+    )
   })
 
 // ============================================================
@@ -491,44 +429,37 @@ export const getListingAmiCharts = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<SerializableAmiChart[]> => {
     if (!data.charts.length) return []
 
-    const { redis, cacheService, proxyClient, withRetry } =
-      await getServerDeps()
+    const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
-    try {
-      // Cache key is order-stable on the requested chart tuples.
-      const params: Record<string, string> = {
-        charts: data.charts
-          .map((c) => `${c.type}:${c.year}:${c.percent}`)
-          .join(","),
-      }
-      const endpoint = "/api/v1/listings/ami"
-      const cacheKey = cacheService.generateCacheKey(endpoint, params)
-
-      const charts = await cacheService.cachedGet<SerializableAmiChart[]>(
-        endpoint,
-        params,
-        false,
-        async () => {
-          const result = await withRetry(
-            () => proxyClient.listings.getAmiCharts(data.charts),
-            { cacheService, cacheKey }
-          )
-          // Enrich chartType/year/derivedFrom (mirrors listingDetailsReducer).
-          const enriched = (result as unknown as SerializableAmiChart[]).map((chart) => ({
-            ...chart,
-            chartType: chart.values[0]?.chartType,
-            year: chart.values[0]?.year,
-            derivedFrom: data.charts.find((c) => c.percent === Number(chart.percent))
-              ?.derivedFrom,
-          }))
-          return { data: enriched, status: 200 }
-        }
-      )
-
-      return charts
-    } finally {
-      try { await redis.quit() } catch { /* Redis was not connected */ }
+    // Cache key is order-stable on the requested chart tuples.
+    const params: Record<string, string> = {
+      charts: data.charts
+        .map((c) => `${c.type}:${c.year}:${c.percent}`)
+        .join(","),
     }
+    const endpoint = "/api/v1/listings/ami"
+    const cacheKey = cacheService.generateCacheKey(endpoint, params)
+
+    return cacheService.cachedGet<SerializableAmiChart[]>(
+      endpoint,
+      params,
+      false,
+      async () => {
+        const result = await withRetry(
+          () => proxyClient.listings.getAmiCharts(data.charts),
+          { cacheService, cacheKey }
+        )
+        // Enrich chartType/year/derivedFrom (mirrors listingDetailsReducer).
+        const enriched = (result as unknown as SerializableAmiChart[]).map((chart) => ({
+          ...chart,
+          chartType: chart.values[0]?.chartType,
+          year: chart.values[0]?.year,
+          derivedFrom: data.charts.find((c) => c.percent === Number(chart.percent))
+            ?.derivedFrom,
+        }))
+        return { data: enriched, status: 200 }
+      }
+    )
   })
 
 // ============================================================
@@ -542,33 +473,26 @@ export const getListingAmiCharts = createServerFn({ method: "GET" })
 export const getEligibleListings = createServerFn({ method: "GET" })
   .inputValidator((data: EligibilityInput) => data)
   .handler(async ({ data }): Promise<SerializableListing[]> => {
-    const { redis, cacheService, proxyClient, withRetry } =
-      await getServerDeps()
+    const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
-    try {
-      const params: Record<string, string> = {}
-      if (data.householdsize !== undefined) params.householdsize = String(data.householdsize)
-      if (data.incomelevel !== undefined) params.incomelevel = String(data.incomelevel)
-      if (data.childrenUnder6 !== undefined) params.childrenUnder6 = String(data.childrenUnder6)
+    const params: Record<string, string> = {}
+    if (data.householdsize !== undefined) params.householdsize = String(data.householdsize)
+    if (data.incomelevel !== undefined) params.incomelevel = String(data.incomelevel)
+    if (data.childrenUnder6 !== undefined) params.childrenUnder6 = String(data.childrenUnder6)
 
-      const endpoint = "/api/v1/listings/eligibility"
-      const cacheKey = cacheService.generateCacheKey(endpoint, params)
+    const endpoint = "/api/v1/listings/eligibility"
+    const cacheKey = cacheService.generateCacheKey(endpoint, params)
 
-      const listings = await cacheService.cachedGet<SerializableListing[]>(
-        endpoint,
-        params,
-        false,
-        async () => {
-          const result = await withRetry(
-            () => proxyClient.listings.getEligible(data),
-            { cacheService, cacheKey }
-          )
-          return { data: result as unknown as SerializableListing[], status: 200 }
-        }
-      )
-
-      return listings
-    } finally {
-      try { await redis.quit() } catch { /* Redis was not connected */ }
-    }
+    return cacheService.cachedGet<SerializableListing[]>(
+      endpoint,
+      params,
+      false,
+      async () => {
+        const result = await withRetry(
+          () => proxyClient.listings.getEligible(data),
+          { cacheService, cacheKey }
+        )
+        return { data: result as unknown as SerializableListing[], status: 200 }
+      }
+    )
   })
