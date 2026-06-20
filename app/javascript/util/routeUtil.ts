@@ -144,15 +144,20 @@ export const mapAlertParamToEnum = (param: string | null): AlertReason => {
   }
 }
 
-export const SignInRedirectUrls = {
+// Built lazily: each getter defaults to window.location.pathname, so calling
+// them at module-eval (as an eager object literal did) crashes server-side
+// rendering ("window is not defined"). Deferring to call-time is identical in
+// the browser and lets SSR code (app-node native pages) import this module.
+export const getSignInRedirectUrls = (): Record<RedirectType, string> => ({
   [RedirectType.Account]: getMyAccountPath(),
   [RedirectType.Applications]: getApplicationPath(),
   [RedirectType.Settings]: getMyAccountSettingsPath(),
   [RedirectType.Home]: getHomepagePath(),
-}
+})
 
 const getRedirectUrl = (key: RedirectType): string => {
-  return SignInRedirectUrls[key] || SignInRedirectUrls[RedirectType.Home]
+  const urls = getSignInRedirectUrls()
+  return urls[key] || urls[RedirectType.Home]
 }
 
 export const getSignInRedirectUrl = (redirect: RedirectType) => {

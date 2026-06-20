@@ -13,6 +13,8 @@ import {
   logProxyAuthFailure,
 } from "../security/proxy-logger"
 import type {
+  AmiChart,
+  AmiChartMetaData,
   AmiLevel,
   AmiParams,
   Application,
@@ -131,6 +133,7 @@ export interface SalesforceProxyClient {
     getLotteryRanking(id: string, lotteryNumber: string): Promise<LotteryRanking>
     getPreferences(id: string): Promise<Preference[]>
     getAmi(params: AmiParams): Promise<AmiLevel[]>
+    getAmiCharts(charts: AmiChartMetaData[]): Promise<AmiChart[]>
     getEligible(filters: EligibilityFilters): Promise<Listing[]>
   }
   shortForm: {
@@ -201,6 +204,22 @@ export function createSalesforceProxyClient(): SalesforceProxyClient {
         const query = buildQuery(params)
         const res = await proxyFetch<{ ami: AmiLevel[] }>(`/api/v1/listings/ami${query}`)
         return res.ami
+      },
+
+      async getAmiCharts(charts: AmiChartMetaData[]): Promise<AmiChart[]> {
+        // The Rails `ami` action iterates ARRAY params (year[]/percent[]/chartType[])
+        // and returns one chart per entry as { ami: [{ percent, values }, ...] }.
+        // buildQuery can't express repeated keys, so assemble the query manually
+        // (matching app/javascript/api/listingApiService.ts getAmiCharts).
+        const search = new URLSearchParams()
+        for (const chart of charts) {
+          search.append("year[]", String(chart.year))
+          search.append("percent[]", String(chart.percent))
+          search.append("chartType[]", chart.type)
+        }
+        const query = charts.length ? `?${search.toString()}` : ""
+        const res = await proxyFetch<{ ami: AmiChart[] }>(`/api/v1/listings/ami${query}`)
+        return res.ami ?? []
       },
 
       async getEligible(filters: EligibilityFilters): Promise<Listing[]> {

@@ -17,7 +17,9 @@ import {
   getListingDetail,
   getListingUnits,
   getListingPreferences,
+  getListingAmiCharts,
 } from "../lib/listings/server-fns"
+import { getAmiChartMetaDataFromUnits } from "../lib/listings/ami"
 
 export const Route = createFileRoute("/listings/$id")({
   // `force` is an optional cache-bust flag; only surface it when explicitly
@@ -31,7 +33,14 @@ export const Route = createFileRoute("/listings/$id")({
       getListingUnits({ data: { id: params.id } }),
       getListingPreferences({ data: { id: params.id } }),
     ])
-    return { listing, units, preferences }
+    // AMI charts are a secondary fetch derived from the units: each unit
+    // references a chart by (type, year, percent), so we can only request them
+    // once units are in hand. Fetching here (vs client-side post-load like the
+    // Rails page) keeps the pricing/income table fully server-rendered.
+    const amiCharts = await getListingAmiCharts({
+      data: { charts: getAmiChartMetaDataFromUnits(units) },
+    })
+    return { listing, units, preferences, amiCharts }
   },
   component: ListingDetailRoute,
   errorComponent: ListingDetailError,
@@ -39,8 +48,15 @@ export const Route = createFileRoute("/listings/$id")({
 })
 
 function ListingDetailRoute() {
-  const { listing, units, preferences } = Route.useLoaderData()
-  return <ListingDetail listing={listing} units={units} preferences={preferences} />
+  const { listing, units, preferences, amiCharts } = Route.useLoaderData()
+  return (
+    <ListingDetail
+      listing={listing}
+      units={units}
+      preferences={preferences}
+      amiCharts={amiCharts}
+    />
+  )
 }
 
 function ListingDetailError() {

@@ -16,7 +16,6 @@ import {
   PreferencesList,
   SidebarBlock,
   SiteAlert,
-  StandardTable,
   t,
   type ListPreference,
 } from "@uic"
@@ -29,10 +28,12 @@ import {
 } from "../../../../app/javascript/modules/constants"
 import { getSfGovUrl } from "../../../../app/javascript/util/languageUtil"
 import type {
+  SerializableAmiChart,
   SerializableListing,
   SerializablePreference,
   SerializableUnit,
 } from "../../lib/listings/server-fns"
+import { PricingTable } from "./PricingTable"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ interface ListingDetailProps {
   listing: SerializableListing
   units: SerializableUnit[]
   preferences: SerializablePreference[]
+  amiCharts: SerializableAmiChart[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -102,41 +104,6 @@ function ApplicationStatusBanner({ listing }: { listing: SerializableListing }) 
     >
       {message}
     </Message>
-  )
-}
-
-function UnitsTable({ units }: { units: SerializableUnit[] }) {
-  if (!units.length) return null
-
-  const headers = {
-    unitType: "t.unitType",
-    bedrooms: "t.bedrooms",
-    bathrooms: "t.bathrooms",
-    sqFt: "t.sqFt",
-    rent: "t.rent",
-  }
-
-  const data = units.map((unit, i) => ({
-    unitType: {
-      content: unit.unitType
-        ? t(`listings.unitTypes.${unit.unitType}`, { defaultValue: unit.unitType })
-        : "—",
-    },
-    bedrooms: { content: unit.numBedrooms != null ? String(unit.numBedrooms) : "—" },
-    bathrooms: { content: unit.numBathrooms != null ? String(unit.numBathrooms) : "—" },
-    sqFt: { content: unit.sqFt != null ? unit.sqFt.toLocaleString() : "—" },
-    rent: {
-      content:
-        unit.bmrRentMonthly != null
-          ? `$${Math.round(unit.bmrRentMonthly).toLocaleString()}/mo`
-          : "—",
-    },
-  }))
-
-  return (
-    <div className="listing-detail-panel">
-      <StandardTable headers={headers} data={data} />
-    </div>
   )
 }
 
@@ -244,7 +211,7 @@ function ApplySidebar({ listing }: { listing: SerializableListing }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ListingDetail({ listing, units, preferences }: ListingDetailProps) {
+export function ListingDetail({ listing, units, preferences, amiCharts }: ListingDetailProps) {
   const address = getFullAddress(listing)
   const open = isApplicationOpen(listing)
   const alertClasses = "flex-grow mt-6 max-w-6xl w-full"
@@ -312,7 +279,7 @@ export function ListingDetail({ listing, units, preferences }: ListingDetailProp
             )}
           </div>
 
-          {/* Units / pricing */}
+          {/* Units / pricing — faithful occupancy/AMI grouping (see PricingTable) */}
           {units.length > 0 && (
             <ListingDetailItem
               imageAlt=""
@@ -320,7 +287,9 @@ export function ListingDetail({ listing, units, preferences }: ListingDetailProp
               title={t("listings.availableUnits")}
               subtitle=""
             >
-              <UnitsTable units={units} />
+              <div className="listing-detail-panel">
+                <PricingTable listing={listing} units={units} amiCharts={amiCharts} />
+              </div>
             </ListingDetailItem>
           )}
 

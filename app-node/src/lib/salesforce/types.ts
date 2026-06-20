@@ -87,6 +87,32 @@ export interface AmiLevel {
   [key: string]: unknown
 }
 
+/**
+ * One AMI chart referenced by a unit, identified by (type, year, percent).
+ * `derivedFrom` ("MaxAmi" | "MinAmi") records which unit field the chart was
+ * pulled for — set client-side, since the Rails ami endpoint doesn't return it.
+ */
+export interface AmiChartMetaData {
+  type: string
+  year: number
+  percent: number
+  derivedFrom?: string
+}
+
+/**
+ * A full AMI chart: the income amount per household size. Shape matches the
+ * Rails `{ ami: [...] }` response (one entry per requested chart), with
+ * `chartType`/`year`/`derivedFrom` enriched from the chart's values + the
+ * request metadata to mirror the Rails listingDetailsReducer.
+ */
+export interface AmiChart {
+  percent: string | number
+  chartType?: string
+  year?: number | string
+  derivedFrom?: string
+  values: AmiLevel[]
+}
+
 export interface EligibilityFilters {
   householdsize?: number
   incomelevel?: number

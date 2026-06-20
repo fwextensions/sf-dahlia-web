@@ -128,6 +128,23 @@ export interface SerializableAmiLevel {
   [key: string]: string | number | boolean | null | undefined
 }
 
+/** Serializable AMI chart: income amount per household size for one (type, year, percent). */
+export interface SerializableAmiChart {
+  percent: string | number
+  chartType?: string
+  year?: number | string
+  derivedFrom?: string
+  values: SerializableAmiLevel[]
+}
+
+/** Metadata identifying one AMI chart a listing's units reference. */
+export interface AmiChartMetaInput {
+  type: string
+  year: number
+  percent: number
+  derivedFrom?: string
+}
+
 export interface ListingsLoaderData {
   listings: SerializableListing[]
   type: "rental" | "ownership"
@@ -450,6 +467,65 @@ export const getAmiData = createServerFn({ method: "GET" })
       )
 
       return amiLevels
+    } finally {
+      try { await redis.quit() } catch { /* Redis was not connected */ }
+    }
+  })
+
+// ============================================================
+// Server Function: getListingAmiCharts
+// ============================================================
+
+/**
+ * Fetches the full AMI charts a listing's units reference, in ONE call.
+ *
+ * The Rails `ami` endpoint takes array params (year[]/percent[]/chartType[])
+ * and returns one chart per entry. We then enrich each chart the way the Rails
+ * listingDetailsReducer does: pull chartType/year off the first value and attach
+ * `derivedFrom` (MinAmi/MaxAmi) by matching percent back to the requested
+ * metadata. The caller derives that metadata from units via
+ * getAmiChartMetaDataFromUnits (see lib/listings/ami.ts).
+ */
+export const getListingAmiCharts = createServerFn({ method: "GET" })
+  .inputValidator((data: { charts: AmiChartMetaInput[] }) => data)
+  .handler(async ({ data }): Promise<SerializableAmiChart[]> => {
+    if (!data.charts.length) return []
+
+    const { redis, cacheService, proxyClient, withRetry } =
+      await getServerDeps()
+
+    try {
+      // Cache key is order-stable on the requested chart tuples.
+      const params: Record<string, string> = {
+        charts: data.charts
+          .map((c) => `${c.type}:${c.year}:${c.percent}`)
+          .join(","),
+      }
+      const endpoint = "/api/v1/listings/ami"
+      const cacheKey = cacheService.generateCacheKey(endpoint, params)
+
+      const charts = await cacheService.cachedGet<SerializableAmiChart[]>(
+        endpoint,
+        params,
+        false,
+        async () => {
+          const result = await withRetry(
+            () => proxyClient.listings.getAmiCharts(data.charts),
+            { cacheService, cacheKey }
+          )
+          // Enrich chartType/year/derivedFrom (mirrors listingDetailsReducer).
+          const enriched = (result as unknown as SerializableAmiChart[]).map((chart) => ({
+            ...chart,
+            chartType: chart.values[0]?.chartType,
+            year: chart.values[0]?.year,
+            derivedFrom: data.charts.find((c) => c.percent === Number(chart.percent))
+              ?.derivedFrom,
+          }))
+          return { data: enriched, status: 200 }
+        }
+      )
+
+      return charts
     } finally {
       try { await redis.quit() } catch { /* Redis was not connected */ }
     }
