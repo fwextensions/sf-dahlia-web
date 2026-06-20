@@ -2,7 +2,7 @@
 // (This is the package's stock header. The app's own fork lives at
 // app/javascript/components/SiteHeader/SiteHeader.tsx and renders this one
 // when the new-account-layout flag is off.)
-import React, { useState, useContext, useLayoutEffect } from "react"
+import React, { useState, useContext, useLayoutEffect, useEffect } from "react"
 import { CSSTransition } from "react-transition-group"
 import { LanguageNav, LangItem } from "./LanguageNav"
 import { Icon } from "./Icon"
@@ -11,6 +11,13 @@ import { AppearanceSizeType } from "./AppearanceTypes"
 import { t } from "./translator"
 import "./SiteHeader.css"
 import { NavigationContext } from "./NavigationContext"
+
+// useLayoutEffect warns when run during SSR ("does nothing on the server").
+// app-node now server-renders this header (native AppShell), so fall back to
+// useEffect on the server. In the browser — including the always-client Rails
+// app — this stays useLayoutEffect, so behavior is unchanged there.
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect
 
 type LogoWidth = "slim" | "base" | "medium" | "wide"
 type SiteHeaderWidth = "base" | "wide"
@@ -93,7 +100,7 @@ const SiteHeader = (props: SiteHeaderProps) => {
 
   const DESKTOP_MIN_WIDTH = props.desktopMinWidth || 767 // @screen md
   // Enables toggling off navbar links when entering mobile
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const updateMedia = () => {
       if (window.innerWidth > DESKTOP_MIN_WIDTH) {
         setIsDesktop(true)

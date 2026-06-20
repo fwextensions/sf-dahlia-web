@@ -1,6 +1,7 @@
 import { defineConfig } from "vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
+import tailwindcss from "@tailwindcss/vite"
 import tsconfigPaths from "vite-tsconfig-paths"
 import path from "node:path"
 import fs from "node:fs"
@@ -113,6 +114,12 @@ export default defineConfig({
   },
   plugins: [
     tsconfigPaths(),
+    // Process Tailwind via the Vite plugin (not @tailwindcss/postcss). It
+    // resolves @apply against the full theme even when the dev server transforms
+    // CSS modules independently, which the PostCSS plugin couldn't — clearing the
+    // dev-only "Cannot apply unknown utility class" errors. The cascade-layer
+    // wrapLayer plugin still runs via postcss.config.js (after this expands).
+    tailwindcss(),
     tanstackStart({
       server: {
         entry: "./src/server.ts",

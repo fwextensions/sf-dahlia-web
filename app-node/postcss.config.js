@@ -1,7 +1,6 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { createRequire } from "node:module"
-import tailwindPostcss from "@tailwindcss/postcss"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -26,13 +25,12 @@ const wrapLayer = require("../config/webpack/loaders/wrapLayer.js")
 // here, but keeping the same predicate keeps the two builds aligned.
 const themeFile = path.join("app", "javascript", "styles", "theme.css")
 
-// Pure Tailwind v4: the theme + @source live in the imported CSS (theme.css via
-// base.css), and the vendored uic component CSS each carry their own
-// `@reference "../../styles/theme.css"`, so no @config/@reference injection is
-// needed here.
+// Tailwind itself is now processed by @tailwindcss/vite (see vite.config.ts);
+// this PostCSS pass only runs wrapLayer, which wraps bare first-party rules into
+// the `components` layer. The Vite plugin expands `@import "tailwindcss"` before
+// this runs, so wrapLayer still sees only base.css's bare global rules to wrap.
 export default {
   plugins: [
-    tailwindPostcss(),
     wrapLayer({
       layer: "components",
       skip: (file) => file.replace(/\\/g, "/").endsWith(themeFile.replace(/\\/g, "/")),
