@@ -10,6 +10,7 @@ import {
 import { ClerkProvider } from "@clerk/tanstack-react-start"
 import { NotFound } from "../components/NotFound"
 import { AppShell } from "../components/AppShell"
+import { NavigationProvider } from "../components/NavigationProvider"
 import { evaluateRedirects } from "../lib/routing/redirects"
 import { getClientEnvScript } from "../config/clientEnv"
 import {
@@ -147,13 +148,18 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body>
-        {clerkEnabled ? (
-          <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-            {children}
-          </ClerkProvider>
-        ) : (
-          children
-        )}
+        {/* Route @uic links through the TanStack router (client-side nav +
+            intent preloading). Bridged Rails pages set their own inner
+            NavigationContext via withAppSetup, so they're unaffected. */}
+        <NavigationProvider>
+          {clerkEnabled ? (
+            <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+              {children}
+            </ClerkProvider>
+          ) : (
+            children
+          )}
+        </NavigationProvider>
         <Scripts />
       </body>
     </html>
