@@ -176,7 +176,12 @@ export const getPathWithoutLanguagePrefix = (path: string): string => {
  * the path.
  */
 export const getCurrentLanguage = (path?: string): LanguagePrefix => {
-  return getRoutePrefix(path || window.location.pathname) || LanguagePrefix.English
+  // SSR-safe: `window` is undefined on the server. Callers that know the request
+  // path should pass it; otherwise fall back to the browser path (client) or the
+  // English default (server).
+  const resolvedPath =
+    path ?? (typeof window !== "undefined" ? window.location.pathname : "")
+  return getRoutePrefix(resolvedPath) || LanguagePrefix.English
 }
 
 /**
@@ -186,7 +191,7 @@ export const getCurrentLanguage = (path?: string): LanguagePrefix => {
 export const getSfGovUrl = (enLink: string, path?: string) => {
   if (!SFGOV_LINKS.includes(enLink) || enLink.includes("pdf")) return enLink
   const linkPath = new URL(enLink).pathname
-  switch (getCurrentLanguage(path || window.location.pathname)) {
+  switch (getCurrentLanguage(path)) {
     case LanguagePrefix.Spanish:
       return `https://sf.gov/es${linkPath}`
     case LanguagePrefix.Tagalog:
@@ -281,7 +286,7 @@ export function defaultIfNotTranslated(
  * @returns {string} localized date
  */
 export function localizedFormat(date: string | Date, format: string): string {
-  const lang = getCurrentLanguage(window.location.pathname)
+  const lang = getCurrentLanguage()
   if (date) return dayjs(date).tz().locale(dayJsLocales[lang]).format(format)
   return ""
 }

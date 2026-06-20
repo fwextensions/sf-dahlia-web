@@ -10,13 +10,21 @@ import {
   Heading,
   Icon,
   LinkButton,
-  ListingCard,
   PageHeader,
   t,
 } from "@uic"
 import dayjs from "dayjs"
 import type { SerializableListing } from "../../lib/listings/server-fns"
-import { getListingAddress, getListingImageUrl } from "../../lib/listings/display"
+import type RailsRentalListing from "../../../../app/javascript/api/types/rails/listings/RailsRentalListing"
+import {
+  getListingCards as getRailsListingCards,
+  getRangeString,
+  getRentRangeString,
+  getRentSubText,
+  getAvailabilityString,
+  type StackedDataFxnType,
+} from "../../../../app/javascript/modules/listings/DirectoryHelpers"
+import { defaultIfNotTranslated } from "../../../../app/javascript/util/languageUtil"
 import { ListingsGroupHeader } from "./components/ListingsGroupHeader"
 import { ListingsGroup } from "./components/ListingsGroup"
 import { EmptyListingsView } from "./components/EmptyListingsView"
@@ -67,46 +75,38 @@ function sortListings(listings: SerializableListing[]): ListingsGroups {
   return { open, upcoming, results, additional }
 }
 
-function getListingCards(listings: SerializableListing[]): JSX.Element[] {
-  return listings.map((listing) => {
-    const imageUrl = getListingImageUrl(listing)
-    const dueDate = listing.Application_Due_Date
-    const isOpen = dueDate ? dayjs(dueDate) > dayjs() : false
-    const statusContent = dueDate
-      ? `${isOpen ? t("listingDirectory.listingStatusContent.applicationDeadline") : t("listingDirectory.listingStatusContent.applicationsClosed")}: ${dayjs(dueDate).format("MMMM D, YYYY")}`
-      : ""
-    const reservedText = typeof listing.reservedDescriptor === "string"
-      ? listing.reservedDescriptor
-      : undefined
+// Builds the "Available Units" stacked-table rows (units / income range / rent)
+// from the listing's unitSummaries. Mirrors getForRentSummaryTable in
+// app/javascript/pages/listings/for-rent.tsx.
+const getForRentSummaryTable: StackedDataFxnType = (listing: RailsRentalListing) => {
+  const summary = listing.unitSummaries.general ?? listing.unitSummaries.reserved
+  if (!summary) return []
+  return summary
+    .filter((s) => !!s.unitType)
+    .map((s) => ({
+      unitType: {
+        cellText: defaultIfNotTranslated(`listings.unitTypes.${s.unitType}`, s.unitType),
+        cellSubText: getAvailabilityString(listing, s),
+        hideMobile: true,
+      },
+      colThree: {
+        cellText: getRangeString(s.absoluteMinIncome || 0, s.absoluteMaxIncome, true) ?? "",
+        cellSubText: t("t.perMonth"),
+      },
+      colFour: { cellText: getRentRangeString(s), cellSubText: getRentSubText(s) ?? "" },
+    }))
+}
 
-    return (
-      <ListingCard
-        key={listing.listingID}
-        stackedTable={false}
-        imageCardProps={{
-          imageUrl,
-          href: `/listings/${listing.listingID}`,
-          statuses: dueDate
-            ? [{ status: isOpen ? 0 : 2, content: statusContent }]
-            : [],
-          tags: reservedText ? [{ text: reservedText }] : [],
-          description: listing.Name,
-        }}
-        contentProps={{
-          contentHeader: {
-            content: listing.Name,
-            href: `/listings/${listing.listingID}`,
-          },
-          contentSubheader: {
-            content: getListingAddress(listing),
-          },
-        }}
-        footerButtons={[
-          { text: t("t.seeDetails"), href: `/listings/${listing.listingID}` },
-        ]}
-      />
-    )
-  })
+// Reuse the Rails directory card renderer so cards match production exactly:
+// image, tags, status bars, and the "Available Units" stacked unit table with
+// its priority-units subheader. The native data is the raw Salesforce shape the
+// Rails helpers expect.
+function getListingCards(listings: SerializableListing[]): JSX.Element[] {
+  return getRailsListingCards(
+    listings as unknown as RailsRentalListing[],
+    "forRent",
+    getForRentSummaryTable
+  )
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
