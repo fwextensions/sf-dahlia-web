@@ -34,6 +34,7 @@ import type {
   SerializablePreference,
   SerializableUnit,
 } from "../../lib/listings/server-fns"
+import { getListingAddress } from "../../lib/listings/display"
 import { PricingTable } from "./PricingTable"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -63,8 +64,8 @@ const preferenceNameHasVeteran = (preferenceName: string): boolean =>
   typeof preferenceName === "string" && preferenceName.toLowerCase().includes("veteran")
 
 function isApplicationOpen(listing: SerializableListing): boolean {
-  if (!listing.applicationDueDate) return false
-  return dayjs(listing.applicationDueDate) > dayjs()
+  if (!listing.Application_Due_Date) return false
+  return dayjs(listing.Application_Due_Date) > dayjs()
 }
 
 function formatDate(dateStr: string | null, format = "MMMM D, YYYY"): string | null {
@@ -78,14 +79,7 @@ function formatDateTime(dateStr: string | null): string | null {
 }
 
 function getFullAddress(listing: SerializableListing): string {
-  return [
-    listing.buildingAddress,
-    listing.buildingCity,
-    listing.buildingState,
-    listing.buildingZip,
-  ]
-    .filter(Boolean)
-    .join(", ")
+  return getListingAddress(listing)
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -93,8 +87,8 @@ function getFullAddress(listing: SerializableListing): string {
 function ApplicationStatusBanner({ listing }: { listing: SerializableListing }) {
   const open = isApplicationOpen(listing)
   const dateStr = open
-    ? listing.applicationDueDate
-    : listing.applicationDueDate
+    ? listing.Application_Due_Date
+    : listing.Application_Due_Date
 
   const message = open
     ? t("listingDetails.applicationsDeadline.withDateTime", {
@@ -243,7 +237,7 @@ export function ListingDetail({
         {/* Image / header card */}
         <header className="image-card--leader">
           <div className="flex flex-col md:items-start md:text-left p-3 text-center">
-            <h1 className="font-sans font-semibold text-2xl">{listing.name}</h1>
+            <h1 className="font-sans font-semibold text-2xl">{listing.Name}</h1>
             <p className="my-1 text-gray-700">{address}</p>
             <p className="my-2">
               <a
@@ -275,9 +269,9 @@ export function ListingDetail({
                   <ApplicationStatusBanner listing={listing} />
                 </div>
                 <ApplySidebar listing={listing} />
-                {listing.lotteryDate && (
+                {listing.Lottery_Results_Date && (
                   <SidebarBlock title={t("listings.lotteryDate")} priority={2}>
-                    {formatDate(listing.lotteryDate)}
+                    {formatDate(listing.Lottery_Results_Date)}
                   </SidebarBlock>
                 )}
               </div>
@@ -340,10 +334,10 @@ export function ListingDetail({
             subtitle={t("listings.additionalInformation.subheader")}
           >
             <div className="listing-detail-panel">
-              {listing.applicationDueDate && (
+              {listing.Application_Due_Date && (
                 <div className="info-card bg-gray-100 border-0">
                   <p className="text-xs">
-                    {`${t("t.listingUpdated")}: ${formatDate(listing.applicationDueDate)}`}
+                    {`${t("t.listingUpdated")}: ${formatDate(listing.Application_Due_Date)}`}
                   </p>
                 </div>
               )}

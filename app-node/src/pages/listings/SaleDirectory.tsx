@@ -14,6 +14,7 @@ import {
 } from "@uic"
 import dayjs from "dayjs"
 import type { SerializableListing } from "../../lib/listings/server-fns"
+import { getListingAddress, getListingImageUrl } from "../../lib/listings/display"
 import { ListingsGroupHeader } from "./components/ListingsGroupHeader"
 import { ListingsGroup } from "./components/ListingsGroup"
 import { EmptyListingsView } from "./components/EmptyListingsView"
@@ -30,8 +31,8 @@ interface ListingsGroups {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function isFcfsSalesListing(listing: SerializableListing): boolean {
-  return listing.listingType === "ownership" && listing.status === "Active" &&
-    !!(listing as Record<string, unknown>)["Application_Start_Date_Time"]
+  const isSale = listing.Tenure === "New sale" || listing.Tenure === "Resale"
+  return isSale && listing.Status === "Active" && !!listing.Application_Start_Date_Time
 }
 
 function sortListings(listings: SerializableListing[]): ListingsGroups {
@@ -43,9 +44,9 @@ function sortListings(listings: SerializableListing[]): ListingsGroups {
   listings.forEach((listing) => {
     if (isFcfsSalesListing(listing)) {
       fcfs.push(listing)
-    } else if (listing.applicationDueDate && dayjs(listing.applicationDueDate) > dayjs()) {
+    } else if (listing.Application_Due_Date && dayjs(listing.Application_Due_Date) > dayjs()) {
       open.push(listing)
-    } else if (listing.lotteryStatus === "Lottery Complete") {
+    } else if (listing.Lottery_Status === "Lottery Complete") {
       results.push(listing)
     } else {
       upcoming.push(listing)
@@ -53,19 +54,19 @@ function sortListings(listings: SerializableListing[]): ListingsGroups {
   })
 
   open.sort((a, b) => {
-    if (!a.applicationDueDate) return 1
-    if (!b.applicationDueDate) return -1
-    return new Date(a.applicationDueDate) > new Date(b.applicationDueDate) ? 1 : -1
+    if (!a.Application_Due_Date) return 1
+    if (!b.Application_Due_Date) return -1
+    return new Date(a.Application_Due_Date) > new Date(b.Application_Due_Date) ? 1 : -1
   })
   upcoming.sort((a, b) => {
-    if (!a.applicationDueDate) return 1
-    if (!b.applicationDueDate) return -1
-    return new Date(a.applicationDueDate) < new Date(b.applicationDueDate) ? 1 : -1
+    if (!a.Application_Due_Date) return 1
+    if (!b.Application_Due_Date) return -1
+    return new Date(a.Application_Due_Date) < new Date(b.Application_Due_Date) ? 1 : -1
   })
   results.sort((a, b) => {
-    if (!a.lotteryDate) return 1
-    if (!b.lotteryDate) return -1
-    return new Date(a.lotteryDate) < new Date(b.lotteryDate) ? 1 : -1
+    if (!a.Lottery_Results_Date) return 1
+    if (!b.Lottery_Results_Date) return -1
+    return new Date(a.Lottery_Results_Date) < new Date(b.Lottery_Results_Date) ? 1 : -1
   })
 
   return { open, fcfs, upcoming, results }
@@ -73,8 +74,8 @@ function sortListings(listings: SerializableListing[]): ListingsGroups {
 
 function getListingCards(listings: SerializableListing[]): JSX.Element[] {
   return listings.map((listing) => {
-    const imageUrl = typeof listing.imageURL === "string" ? listing.imageURL : undefined
-    const dueDate = listing.applicationDueDate
+    const imageUrl = getListingImageUrl(listing)
+    const dueDate = listing.Application_Due_Date
     const isOpen = dueDate ? dayjs(dueDate) > dayjs() : false
     const statusContent = dueDate
       ? `${isOpen ? t("listingDirectory.listingStatusContent.applicationDeadline") : t("listingDirectory.listingStatusContent.applicationsClosed")}: ${dayjs(dueDate).format("MMMM D, YYYY")}`
@@ -94,15 +95,15 @@ function getListingCards(listings: SerializableListing[]): JSX.Element[] {
             ? [{ status: isOpen ? 0 : 2, content: statusContent }]
             : [],
           tags: reservedText ? [{ text: reservedText }] : [],
-          description: listing.name,
+          description: listing.Name,
         }}
         contentProps={{
           contentHeader: {
-            content: listing.name,
+            content: listing.Name,
             href: `/listings/${listing.listingID}`,
           },
           contentSubheader: {
-            content: `${listing.buildingAddress}, ${listing.buildingCity}, ${listing.buildingState} ${listing.buildingZip}`,
+            content: getListingAddress(listing),
           },
         }}
         footerButtons={[

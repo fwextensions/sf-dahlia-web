@@ -9,6 +9,7 @@
 import { createTranslatorSync } from "../i18n"
 import type { TranslationDictionary } from "../i18n/types"
 import type { SerializableListing } from "../lib/listings/server-fns"
+import { getListingAddress } from "../lib/listings/display"
 
 interface HowToApplyProps {
   translations: TranslationDictionary | null
@@ -31,14 +32,11 @@ export function HowToApply({ translations, fallbackTranslations, listing }: HowT
         </p>
         {listing && (
           <div className="mt-4 p-4 bg-gray-50 rounded">
-            <p className="font-semibold">{listing.name}</p>
-            <p className="text-gray-600">
-              {listing.buildingAddress}, {listing.buildingCity},{" "}
-              {listing.buildingState} {listing.buildingZip}
-            </p>
-            {listing.applicationDueDate && (
+            <p className="font-semibold">{listing.Name}</p>
+            <p className="text-gray-600">{getListingAddress(listing)}</p>
+            {listing.Application_Due_Date && (
               <p className="mt-1 text-gray-700">
-                <strong>Application Due:</strong> {listing.applicationDueDate}
+                <strong>Application Due:</strong> {listing.Application_Due_Date}
               </p>
             )}
           </div>

@@ -29,20 +29,20 @@ function InviteToPage() {
 
   return (
     <main role="main" aria-labelledby="next-steps-title">
-      <h1 id="next-steps-title">Next Steps: {listing.name}</h1>
+      <h1 id="next-steps-title">Next Steps: {listing.Name}</h1>
 
       <section aria-labelledby="listing-info-heading">
         <h2 id="listing-info-heading">Listing Information</h2>
         <address>
-          {listing.buildingAddress}
+          {listing.Building_Street_Address}
           <br />
-          {listing.buildingCity}, {listing.buildingState} {listing.buildingZip}
+          {listing.Building_City}, {listing.Building_State} {listing.Building_Zip_Code}
         </address>
       </section>
 
-      {listing.lotteryStatus && (
+      {listing.Lottery_Status && (
         <p>
-          <strong>Lottery Status:</strong> {listing.lotteryStatus}
+          <strong>Lottery Status:</strong> {listing.Lottery_Status}
         </p>
       )}
 

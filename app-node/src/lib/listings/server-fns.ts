@@ -19,20 +19,41 @@ import type { ListingsParams } from "../salesforce/types"
 // Serializable Types (JSON-safe versions without index signatures)
 // ============================================================
 
-/** Serializable listing data returned from server functions */
+/**
+ * Listing data returned from the server functions.
+ *
+ * This is the RAW Salesforce shape exactly as the Rails proxy returns it — the
+ * same field keys the Rails FE components use (`Name`, `Building_Street_Address`,
+ * `Application_Due_Date`, …). We deliberately do NOT remap to a camelCase shape:
+ * keeping the Salesforce keys matches the convention engineers already know and
+ * lets native pages reuse the existing Rails helpers/components. The server fns
+ * pass the proxy response through unchanged. Only the most commonly read fields
+ * are declared; the index signature covers the rest of the record.
+ */
 export interface SerializableListing {
+  /** Salesforce record id; the API also exposes the same value as `listingID`. */
+  Id: string
   listingID: string
-  name: string
-  buildingAddress: string
-  buildingCity: string
-  buildingState: string
-  buildingZip: string
-  applicationDueDate: string | null
-  lotteryDate: string | null
-  lotteryStatus: string | null
-  reservedDescriptor: string | null
-  listingType: "rental" | "ownership"
-  status: string
+  Name: string
+  Building_Street_Address?: string | null
+  Building_City?: string | null
+  Building_State?: string | null
+  Building_Zip_Code?: string | null
+  Building_Name?: string | null
+  Application_Due_Date: string | null
+  Application_Start_Date_Time?: string | null
+  Lottery_Results_Date: string | null
+  Lottery_Status: string | null
+  Tenure?: string | null
+  Listing_Type?: string | null
+  Custom_Listing_Type?: string | null
+  Status: string
+  Accepting_Online_Applications?: boolean | null
+  reservedDescriptor?: string | null
+  imageURL?: string | null
+  // Non-primitive raw fields (Listing_Images[], RecordType{}, …) are reached via
+  // the index signature; the index value type stays a JSON primitive union so the
+  // type still satisfies TanStack's serializable server-fn return constraint.
   [key: string]: string | number | boolean | null | undefined
 }
 
