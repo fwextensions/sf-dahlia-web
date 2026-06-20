@@ -35,6 +35,7 @@
  * source to stay in sync with Rails rather than duplicated.
  */
 @import "../../../app/javascript/modules/listings/components/ListingsGroup.css";
+@import "../../../app/javascript/modules/listings/components/EmptyListingsView.css";
 @import "../../../app/javascript/modules/listings/ListingsGroupHeader.css";
 @import "../../../app/javascript/modules/listings/ListingDirectory.css";
 @import "../../../app/javascript/modules/listings/BuyHeader.css";
