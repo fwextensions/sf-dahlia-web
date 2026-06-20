@@ -20,6 +20,7 @@ import {
   type ListPreference,
 } from "@uic"
 import { Message } from "@bloom-housing/ui-seeds"
+import { Await } from "@tanstack/react-router"
 import dayjs from "dayjs"
 import {
   PREFERENCES,
@@ -39,9 +40,19 @@ import { PricingTable } from "./PricingTable"
 
 interface ListingDetailProps {
   listing: SerializableListing
-  units: SerializableUnit[]
-  preferences: SerializablePreference[]
-  amiCharts: SerializableAmiChart[]
+  // Below-the-fold sections stream in after the shell (see route loader).
+  pricingPromise: Promise<{ units: SerializableUnit[]; amiCharts: SerializableAmiChart[] }>
+  preferencesPromise: Promise<SerializablePreference[]>
+}
+
+// Fallback while a deferred section streams in. Mirrors the spinner the Rails
+// pricing table shows during its client-side fetch.
+function SectionLoading() {
+  return (
+    <div className="flex justify-center md:my-6 md:pr-8 md:px-0 md:w-2/3 px-3 w-full">
+      <Icon symbol="spinner" size="large" />
+    </div>
+  )
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -211,7 +222,11 @@ function ApplySidebar({ listing }: { listing: SerializableListing }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ListingDetail({ listing, units, preferences, amiCharts }: ListingDetailProps) {
+export function ListingDetail({
+  listing,
+  pricingPromise,
+  preferencesPromise,
+}: ListingDetailProps) {
   const address = getFullAddress(listing)
   const open = isApplicationOpen(listing)
   const alertClasses = "flex-grow mt-6 max-w-6xl w-full"
@@ -279,34 +294,43 @@ export function ListingDetail({ listing, units, preferences, amiCharts }: Listin
             )}
           </div>
 
-          {/* Units / pricing — faithful occupancy/AMI grouping (see PricingTable) */}
-          {units.length > 0 && (
-            <ListingDetailItem
-              imageAlt=""
-              imageSrc=""
-              title={t("listings.availableUnits")}
-              subtitle=""
-            >
-              <div className="listing-detail-panel">
-                <PricingTable listing={listing} units={units} amiCharts={amiCharts} />
-              </div>
-            </ListingDetailItem>
-          )}
+          {/* Units / pricing — deferred (units + AMI charts stream in). Faithful
+              occupancy/AMI grouping lives in PricingTable. */}
+          <Await promise={pricingPromise} fallback={<SectionLoading />}>
+            {({ units, amiCharts }) =>
+              units.length > 0 ? (
+                <ListingDetailItem
+                  imageAlt=""
+                  imageSrc=""
+                  title={t("listings.availableUnits")}
+                  subtitle=""
+                >
+                  <div className="listing-detail-panel">
+                    <PricingTable listing={listing} units={units} amiCharts={amiCharts} />
+                  </div>
+                </ListingDetailItem>
+              ) : null
+            }
+          </Await>
 
-          {/* Eligibility / preferences */}
-          {preferences.length > 0 && (
-            <ListingDetailItem
-              imageAlt=""
-              imageSrc=""
-              title={t("listings.lottery.title")}
-              subtitle={t("listingsForSale.lotteryPreferences.lotteryPreferencesArePrograms")}
-              desktopClass="bg-primary-lighter"
-            >
-              <div className="listing-detail-panel">
-                <PreferencesSection preferences={preferences} />
-              </div>
-            </ListingDetailItem>
-          )}
+          {/* Eligibility / preferences — deferred (streams in). */}
+          <Await promise={preferencesPromise} fallback={<SectionLoading />}>
+            {(preferences) =>
+              preferences.length > 0 ? (
+                <ListingDetailItem
+                  imageAlt=""
+                  imageSrc=""
+                  title={t("listings.lottery.title")}
+                  subtitle={t("listingsForSale.lotteryPreferences.lotteryPreferencesArePrograms")}
+                  desktopClass="bg-primary-lighter"
+                >
+                  <div className="listing-detail-panel">
+                    <PreferencesSection preferences={preferences} />
+                  </div>
+                </ListingDetailItem>
+              ) : null
+            }
+          </Await>
 
           {/* Additional information */}
           <ListingDetailItem

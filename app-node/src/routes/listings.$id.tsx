@@ -10,7 +10,7 @@
  * Translations come from the root route's serialized i18n store; data is
  * fetched on the server by the listing server fns. ssr defaults to true.
  */
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, defer } from "@tanstack/react-router"
 import { ListingDetail } from "~/pages/listings/ListingDetail"
 import { ErrorPage } from "../components/ErrorPage"
 import {
@@ -28,19 +28,34 @@ export const Route = createFileRoute("/listings/$id")({
     search.force === "true" || search.force === true ? { force: true } : {},
   loaderDeps: ({ search }) => ({ force: search.force }),
   loader: async ({ params, deps }) => {
-    const [listing, units, preferences] = await Promise.all([
-      getListingDetail({ data: { id: params.id, force: deps.force } }),
-      getListingUnits({ data: { id: params.id } }),
-      getListingPreferences({ data: { id: params.id } }),
-    ])
-    // AMI charts are a secondary fetch derived from the units: each unit
-    // references a chart by (type, year, percent), so we can only request them
-    // once units are in hand. Fetching here (vs client-side post-load like the
-    // Rails page) keeps the pricing/income table fully server-rendered.
-    const amiCharts = await getListingAmiCharts({
-      data: { charts: getAmiChartMetaDataFromUnits(units) },
+    // Await ONLY the core listing (name/address/image/status — the above-the-fold
+    // content). The shell + hero then flush to the browser immediately for a fast
+    // FCP, instead of SSR blocking on every Salesforce call.
+    const listing = await getListingDetail({
+      data: { id: params.id, force: deps.force },
     })
-    return { listing, units, preferences, amiCharts }
+
+    // Defer the heavier below-the-fold sections as streamed promises (TanStack
+    // streams them in after the shell; the component renders them via <Await>).
+    const unitsPromise = getListingUnits({ data: { id: params.id } })
+    const preferencesPromise = getListingPreferences({ data: { id: params.id } })
+    // AMI charts depend on units (each unit references a chart by type/year/
+    // percent), so chain off units — still deferred, streams after units resolve.
+    const pricingPromise = unitsPromise.then(async (units) => ({
+      units,
+      amiCharts: await getListingAmiCharts({
+        data: { charts: getAmiChartMetaDataFromUnits(units) },
+      }),
+    }))
+
+    // Tag with defer() so the router streams these (serializes as pending and
+    // streams the resolution) instead of awaiting them before SSR. <Await>
+    // consumes them with a Suspense fallback.
+    return {
+      listing,
+      pricingPromise: defer(pricingPromise),
+      preferencesPromise: defer(preferencesPromise),
+    }
   },
   component: ListingDetailRoute,
   errorComponent: ListingDetailError,
@@ -48,13 +63,12 @@ export const Route = createFileRoute("/listings/$id")({
 })
 
 function ListingDetailRoute() {
-  const { listing, units, preferences, amiCharts } = Route.useLoaderData()
+  const { listing, pricingPromise, preferencesPromise } = Route.useLoaderData()
   return (
     <ListingDetail
       listing={listing}
-      units={units}
-      preferences={preferences}
-      amiCharts={amiCharts}
+      pricingPromise={pricingPromise}
+      preferencesPromise={preferencesPromise}
     />
   )
 }
