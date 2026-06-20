@@ -25,53 +25,55 @@ export interface ValidationErrorResponse {
 function formatIssueMessage(issue: ZodIssue): string {
   switch (issue.code) {
     case "invalid_type":
-      if (issue.received === "undefined" || issue.received === "null") {
+      // Zod v4 no longer puts the received value on the issue object, so
+      // fall back to the value Zod's own default message embeds.
+      if (/received (undefined|null)$/.test(issue.message)) {
         return "This field is required"
       }
-      return `Expected ${issue.expected}, received ${issue.received}`
+      return issue.message
 
     case "too_small":
-      if (issue.type === "string") {
+      if (issue.origin === "string") {
         if (issue.minimum === 1) {
           return "This field must not be empty"
         }
         return `Must be at least ${issue.minimum} characters`
       }
-      if (issue.type === "number") {
+      if (issue.origin === "number") {
         return `Must be at least ${issue.minimum}`
       }
-      if (issue.type === "array") {
+      if (issue.origin === "array") {
         return `Must contain at least ${issue.minimum} item(s)`
       }
       return `Value is too small`
 
     case "too_big":
-      if (issue.type === "string") {
+      if (issue.origin === "string") {
         return `Must be at most ${issue.maximum} characters`
       }
-      if (issue.type === "number") {
+      if (issue.origin === "number") {
         return `Must be at most ${issue.maximum}`
       }
-      if (issue.type === "array") {
+      if (issue.origin === "array") {
         return `Must contain at most ${issue.maximum} item(s)`
       }
       return `Value is too large`
 
-    case "invalid_string":
-      if (issue.validation === "email") {
+    case "invalid_format":
+      if (issue.format === "email") {
         return "Must be a valid email address"
       }
-      if (issue.validation === "url") {
+      if (issue.format === "url") {
         return "Must be a valid URL"
       }
-      if (issue.validation === "uuid") {
+      if (issue.format === "uuid") {
         return "Must be a valid identifier"
       }
       // Don't expose regex patterns
       return "Invalid format"
 
-    case "invalid_enum_value":
-      return `Must be one of: ${(issue.options as string[]).join(", ")}`
+    case "invalid_value":
+      return `Must be one of: ${issue.values.join(", ")}`
 
     case "unrecognized_keys":
       return `Unexpected field(s): ${issue.keys.join(", ")}`
@@ -88,11 +90,11 @@ function formatIssueMessage(issue: ZodIssue): string {
  * Example: ["primaryApplicant", "email"] → "primaryApplicant.email"
  * Array indices are included: ["householdMembers", 0, "firstName"] → "householdMembers.0.firstName"
  */
-function formatFieldPath(path: (string | number)[]): string {
+function formatFieldPath(path: PropertyKey[]): string {
   if (path.length === 0) {
     return "_root"
   }
-  return path.join(".")
+  return path.map(String).join(".")
 }
 
 /**

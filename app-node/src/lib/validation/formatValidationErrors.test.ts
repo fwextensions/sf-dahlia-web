@@ -136,7 +136,7 @@ describe("formatValidationErrors", () => {
     if (result.success) return
 
     const formatted = formatValidationErrors(result.error)
-    expect(formatted.fields.age).toBe("Expected number, received string")
+    expect(formatted.fields.age).toBe("Invalid input: expected number, received string")
   })
 
   it("formats max-length errors", () => {
