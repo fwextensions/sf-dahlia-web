@@ -1,4 +1,4 @@
-import { t, createTranslationInstance, setActiveTranslationInstance } from "@uic"
+import { t, createTranslationInstance, setActiveTranslationInstance, locale } from "@uic"
 import Markdown from "markdown-to-jsx"
 import dayjs, { PluginFunc } from "dayjs"
 import utc from "dayjs/plugin/utc"
@@ -176,12 +176,18 @@ export const getPathWithoutLanguagePrefix = (path: string): string => {
  * the path.
  */
 export const getCurrentLanguage = (path?: string): LanguagePrefix => {
-  // SSR-safe: `window` is undefined on the server. Callers that know the request
-  // path should pass it; otherwise fall back to the browser path (client) or the
-  // English default (server).
-  const resolvedPath =
-    path ?? (typeof window !== "undefined" ? window.location.pathname : "")
-  return getRoutePrefix(resolvedPath) || LanguagePrefix.English
+  // Prefer an explicit path, then the browser path on the client.
+  if (path != null) return getRoutePrefix(path) || LanguagePrefix.English
+  if (typeof window !== "undefined") {
+    return getRoutePrefix(window.location.pathname) || LanguagePrefix.English
+  }
+  // Server (no `window`): use the request-scoped active translation instance's
+  // language (set per request via setActiveTranslationInstance), so SSR localizes
+  // to the request language and matches what the client resolves from the URL.
+  const lng = locale()
+  return (Object.values(LanguagePrefix) as string[]).includes(lng)
+    ? (lng as LanguagePrefix)
+    : LanguagePrefix.English
 }
 
 /**
