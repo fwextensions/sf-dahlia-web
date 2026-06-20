@@ -26,6 +26,7 @@ export const Route = createFileRoute("/listings/for-rent")({
     return { listings }
   },
   component: RentDirectoryRoute,
+  staticData: { nativeShell: true },
 })
 
 function RentDirectoryRoute() {

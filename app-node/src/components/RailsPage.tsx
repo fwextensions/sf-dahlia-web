@@ -12,32 +12,11 @@
  * code is evaluated during SSR.
  */
 import React, { useEffect, useState } from "react"
+import { assetPaths } from "../lib/assetPaths"
 
 type RailsPageComponent = React.ComponentType<{ assetPaths: unknown }>
 type PageModule = { default: RailsPageComponent }
 export type PageLoader = () => Promise<PageModule>
-
-// Mirror of Rails' static_asset_paths helper: map asset filename -> served URL.
-// The Rails pages look up images/json by bare filename via ConfigContext's
-// getAssetPath (e.g. getAssetPath("bg@1200.jpg")).
-const assetModules = {
-  ...import.meta.glob("../../../app/assets/images/*", {
-    eager: true,
-    query: "?url",
-    import: "default",
-  }),
-  ...import.meta.glob("../../../app/assets/json/*.json", {
-    eager: true,
-    query: "?url",
-    import: "default",
-  }),
-} as Record<string, string>
-
-const assetPaths: Record<string, string> = {}
-for (const [path, url] of Object.entries(assetModules)) {
-  const basename = path.split("/").pop()
-  if (basename) assetPaths[basename] = url
-}
 
 interface RailsPageProps {
   load: PageLoader

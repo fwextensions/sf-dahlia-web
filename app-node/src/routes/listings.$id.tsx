@@ -35,6 +35,7 @@ export const Route = createFileRoute("/listings/$id")({
   },
   component: ListingDetailRoute,
   errorComponent: ListingDetailError,
+  staticData: { nativeShell: true },
 })
 
 function ListingDetailRoute() {

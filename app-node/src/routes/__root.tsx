@@ -5,9 +5,11 @@ import {
   HeadContent,
   Scripts,
   redirect,
+  useRouterState,
 } from "@tanstack/react-router"
 import { ClerkProvider } from "@clerk/tanstack-react-start"
 import { NotFound } from "../components/NotFound"
+import { AppShell } from "../components/AppShell"
 import { evaluateRedirects } from "../lib/routing/redirects"
 import { getClientEnvScript } from "../config/clientEnv"
 import {
@@ -85,10 +87,32 @@ export const Route = createRootRoute({
   notFoundComponent: NotFoundPage,
 })
 
+// Native routes opt into the SSR-safe site chrome by setting
+// `staticData: { nativeShell: true }`. Bridged (RailsPage) routes leave it unset
+// because the Rails page self-wraps in app/javascript/layouts/Layout.tsx.
+declare module "@tanstack/react-router" {
+  interface StaticDataRouteOption {
+    nativeShell?: boolean
+  }
+}
+
 function RootComponent() {
+  const { pathname, useShell } = useRouterState({
+    select: (state) => ({
+      pathname: state.location.pathname,
+      useShell: state.matches.some((match) => match.staticData?.nativeShell),
+    }),
+  })
+
   return (
     <RootDocument>
-      <Outlet />
+      {useShell ? (
+        <AppShell pathname={pathname}>
+          <Outlet />
+        </AppShell>
+      ) : (
+        <Outlet />
+      )}
     </RootDocument>
   )
 }
