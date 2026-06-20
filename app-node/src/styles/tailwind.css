@@ -24,4 +24,19 @@
 @layer theme, base, seeds, components, utilities;
 
 @import "../../../app/javascript/components/base.css";
+
+/*
+ * Directory-page layout. The native RentDirectory/SaleDirectory pages reuse the
+ * Rails `listings-group__*`, `buy-header_*`, `match-banner`, and `page-header-*`
+ * class names, but those rules live in Rails component-scoped CSS that only the
+ * webpack build imports. Pull them into this global entry (already injected as a
+ * blocking <link> in <head> for both dev and prod, in correct cascade-layer
+ * order) so the centering container + vertical spacing apply. Imported from
+ * source to stay in sync with Rails rather than duplicated.
+ */
+@import "../../../app/javascript/modules/listings/components/ListingsGroup.css";
+@import "../../../app/javascript/modules/listings/ListingsGroupHeader.css";
+@import "../../../app/javascript/modules/listings/ListingDirectory.css";
+@import "../../../app/javascript/modules/listings/BuyHeader.css";
+
 @source "../**/*.{ts,tsx}";
