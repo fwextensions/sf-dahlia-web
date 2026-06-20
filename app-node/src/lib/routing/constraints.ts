@@ -6,7 +6,7 @@
  * (e.g., showing a page vs redirecting to an alternate URL).
  */
 
-import { env } from "../../config/env"
+import { getListingDetail } from "../listings/server-fns"
 
 interface Listing {
   Custom_Listing_Type?: string
@@ -17,27 +17,21 @@ interface Listing {
 }
 
 /**
- * Fetches a listing from the Salesforce proxy for constraint evaluation.
- * Returns null if the listing cannot be fetched.
+ * Fetches a listing for constraint evaluation via the getListingDetail server fn.
+ *
+ * These constraints run in the root `beforeLoad`, which executes on the CLIENT
+ * too (on every hover-preload / client navigation to a listing). A raw
+ * `fetch(RAILS_API_BASE_URL/...)` from the browser is cross-origin → CORS
+ * preflight failure (and would expose the internal API key client-side). Going
+ * through the server fn keeps it same-origin (RPC to /_serverFn), runs the actual
+ * Salesforce call server-side, shares the Redis cache with the route loader (no
+ * duplicate fetch), and returns the raw Salesforce fields via the index
+ * signature. Returns null if the listing can't be fetched.
  */
 async function fetchListing(listingId: string): Promise<Listing | null> {
   try {
-    const response = await fetch(
-      `${env.RAILS_API_BASE_URL}/api/v1/listings/${listingId}`,
-      {
-        headers: {
-          Accept: "application/json",
-          ...(env.INTERNAL_API_KEY
-            ? { "X-Internal-Api-Key": env.INTERNAL_API_KEY }
-            : {}),
-        },
-        signal: AbortSignal.timeout(5000),
-      }
-    )
-    if (!response.ok) return null
-    const data = await response.json()
-    // The Rails API returns { listing: {...} } envelope
-    return data.listing ?? data
+    const listing = await getListingDetail({ data: { id: listingId } })
+    return listing as unknown as Listing
   } catch {
     return null
   }
