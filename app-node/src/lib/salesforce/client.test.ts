@@ -65,7 +65,7 @@ describe("SalesforceProxyClient", () => {
 
       server.use(
         http.get("http://localhost:3000/api/v1/listings", () => {
-          return HttpResponse.json(mockListings)
+          return HttpResponse.json({ listings: mockListings })
         })
       )
 
@@ -94,7 +94,7 @@ describe("SalesforceProxyClient", () => {
 
       server.use(
         http.get("http://localhost:3000/api/v1/listings/123", () => {
-          return HttpResponse.json(mockListing)
+          return HttpResponse.json({ listing: mockListing })
         })
       )
 
@@ -122,7 +122,7 @@ describe("SalesforceProxyClient", () => {
 
       server.use(
         http.get("http://localhost:3000/api/v1/listings/123/units", () => {
-          return HttpResponse.json(mockUnits)
+          return HttpResponse.json({ units: mockUnits })
         })
       )
 
