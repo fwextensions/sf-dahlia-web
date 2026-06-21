@@ -12,8 +12,8 @@
  * and are reached through the RawListing cast below.
  */
 import {
+  Card,
   Contact,
-  Desktop,
   EventSection,
   ExpandableSection,
   Heading,
@@ -70,6 +70,8 @@ import {
 } from "./ListingDetailSections"
 import fallbackImg from "../../../../app/assets/images/bg@1200.jpg"
 import shareButton from "../../../../app/assets/images/share-button.svg"
+// Card chrome + checkmark bullets for the educator eligibility card.
+import "../../../../app/javascript/modules/listingDetails/ListingDetailsEligibility.css"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -586,25 +588,43 @@ function toListPreferences(preferences: SerializablePreference[]): ListPreferenc
 function EducatorEligibilityCopy() {
   return (
     <ListSection title={t("listings.customListingType.educator.eligibility.title")} subtitle="">
-      <div className="markdown space-y-3">
-        <p>
-          <b>{t("listings.customListingType.educator.eligibility.priority")}</b>
-        </p>
-        <p>{t("listings.customListingType.educator.eligibility.priority1")}</p>
-        <p className="mb-0">{t("listings.customListingType.educator.eligibility.priority2")}</p>
-        <ul className="ml-0 my-1 list-disc">
-          <li>
-            {renderInlineMarkup(
-              t("listings.customListingType.educator.eligibility.sfusd", {
-                sfusdLink: "https://www.sfusd.edu/",
-              }),
-              "<a><b>"
-            )}
-          </li>
-          <li>{t("listings.customListingType.educator.eligibility.code")}</li>
-        </ul>
-        <p>{t("listings.customListingType.educator.eligibility.priority3")}</p>
-      </div>
+      <Card className="educator-eligibility">
+        <Card.Section className="markdown">
+          <div>
+            <p>
+              <b>{t("listings.customListingType.educator.eligibility.priority")}</b>
+            </p>
+            <p>{t("listings.customListingType.educator.eligibility.priority1")}</p>
+            <p className="mb-0">{t("listings.customListingType.educator.eligibility.priority2")}</p>
+            <ul className="ml-0 my-1">
+              <li>
+                {renderInlineMarkup(
+                  t("listings.customListingType.educator.eligibility.sfusd", {
+                    sfusdLink: "https://www.sfusd.edu/",
+                  }),
+                  "<a><b>"
+                )}
+              </li>
+              <li>{t("listings.customListingType.educator.eligibility.code")}</li>
+            </ul>
+            <p>
+              {renderInlineMarkup(
+                t("listings.customListingType.educator.eligibility.part2", {
+                  chisholmLink: getSfGovUrl("https://sf.gov/apply-shirley-chisholm-village-housing"),
+                })
+              )}
+            </p>
+            <p>{t("listings.customListingType.educator.eligibility.priority3")}</p>
+            <p>
+              {renderInlineMarkup(
+                t("listings.customListingType.educator.eligibility.priority4", {
+                  learnMoreLink: "#chisholm-preferences",
+                })
+              )}
+            </p>
+          </div>
+        </Card.Section>
+      </Card>
     </ListSection>
   )
 }
@@ -663,7 +683,9 @@ function EligibilitySection({
         <HouseholdMaxIncomeTable listing={listing} units={units} amiCharts={amiCharts} />
         <OccupancyTable listing={listing} />
         {educator ? (
-          <ListingDetailsChisholmPreferences isEducatorOne={isEducatorOne(listing)} />
+          <span id="chisholm-preferences">
+            <ListingDetailsChisholmPreferences isEducatorOne={isEducatorOne(listing)} />
+          </span>
         ) : (
           preferences.length > 0 && (
             <ListSection
@@ -702,36 +724,29 @@ export function ListingDetail({
       <article className="flex flex-wrap flex-col relative max-w-5xl m-auto w-full">
         <HeaderCard listing={listing} />
 
+        {/* Mobile: application status */}
+        <div className="md:hidden px-4 py-2">
+          <ApplicationStatusBanner listing={listing} />
+          {isApplicationOpen(listing) && (
+            <div className="mt-4">
+              <ApplySidebar listing={listing} />
+            </div>
+          )}
+        </div>
+
+        {/* Units / pricing — deferred. Rendered as a direct article child (not in a
+            ListingDetailItem) so its own md:w-2/3 spans 2/3 of the article, matching
+            Rails. Nesting it in a ListingDetailItem would constrain it twice. */}
+        <Await promise={pricingPromise} fallback={<SectionLoading />}>
+          {({ units, amiCharts }) =>
+            units.length > 0 ? (
+              <PricingTable listing={listing} units={units} amiCharts={amiCharts} />
+            ) : null
+          }
+        </Await>
+
         <ListingDetails>
           <Aside listing={listing} />
-
-          {/* Mobile: application status */}
-          <div className="md:hidden px-4 py-2">
-            <ApplicationStatusBanner listing={listing} />
-            {isApplicationOpen(listing) && (
-              <div className="mt-4">
-                <ApplySidebar listing={listing} />
-              </div>
-            )}
-          </div>
-
-          {/* Units / pricing — deferred (units + AMI charts stream in). */}
-          <Await promise={pricingPromise} fallback={<SectionLoading />}>
-            {({ units, amiCharts }) =>
-              units.length > 0 ? (
-                <ListingDetailItem
-                  imageAlt=""
-                  imageSrc=""
-                  title={t("listings.availableUnits")}
-                  subtitle=""
-                >
-                  <div className="listing-detail-panel">
-                    <PricingTable listing={listing} units={units} amiCharts={amiCharts} />
-                  </div>
-                </ListingDetailItem>
-              ) : null
-            }
-          </Await>
 
           {/* Eligibility / preferences — deferred (needs preferences + pricing). */}
           <Await promise={preferencesPromise} fallback={<SectionLoading />}>
