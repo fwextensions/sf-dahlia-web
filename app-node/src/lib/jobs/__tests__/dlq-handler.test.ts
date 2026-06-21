@@ -9,6 +9,9 @@ vi.mock("bullmq", () => {
     constructor(name: string, opts?: any) {
       this.name = name
     }
+    on() {
+      return this
+    }
   }
 
   class MockWorker {

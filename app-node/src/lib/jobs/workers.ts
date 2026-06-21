@@ -1,14 +1,14 @@
 /**
- * BullMQ workers for fileAttachment and email queues.
+ * BullMQ worker for the fileAttachment queue.
  *
- * Workers listen for jobs and process them. When a job fails after
+ * The worker listens for jobs and processes them. When a job fails after
  * all retry attempts, it's moved to the dead letter queue.
  */
 import { Worker, type Job, type Processor } from "bullmq"
 
 import { getConnectionOptions } from "./connection"
 import { moveToDeadLetterQueue } from "./dlq-handler"
-import type { EmailJob, FileAttachmentJob } from "./types"
+import type { FileAttachmentJob } from "./types"
 
 const connection = getConnectionOptions()
 
@@ -30,28 +30,6 @@ export function createFileAttachmentWorker(
     if (!job) return
     if (job.attemptsMade >= (job.opts.attempts ?? 5)) {
       await moveToDeadLetterQueue(job, "fileAttachment")
-    }
-  })
-
-  return worker
-}
-
-/**
- * Create the email worker.
- */
-export function createEmailWorker(
-  processor: Processor<EmailJob>
-): Worker<EmailJob> {
-  const worker = new Worker<EmailJob>(
-    "email",
-    processor,
-    { connection }
-  )
-
-  worker.on("failed", async (job: Job<EmailJob> | undefined, err) => {
-    if (!job) return
-    if (job.attemptsMade >= (job.opts.attempts ?? 5)) {
-      await moveToDeadLetterQueue(job, "email")
     }
   })
 

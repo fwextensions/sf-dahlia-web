@@ -9,6 +9,9 @@ vi.mock("bullmq", () => {
     constructor(name: string, opts?: any) {
       this.name = name
     }
+    on() {
+      return this
+    }
   }
 
   class MockWorker {
@@ -48,15 +51,6 @@ describe("Workers", () => {
     const worker = createFileAttachmentWorker(processor)
 
     expect(worker.name).toBe("fileAttachment")
-  })
-
-  it("createEmailWorker creates a worker for email queue", async () => {
-    const { createEmailWorker } = await import("../workers")
-
-    const processor = vi.fn()
-    const worker = createEmailWorker(processor)
-
-    expect(worker.name).toBe("email")
   })
 
   it("fileAttachment worker moves job to DLQ when max attempts reached", async () => {
@@ -106,38 +100,5 @@ describe("Workers", () => {
     await worker.emit("failed", failedJob, new Error("transient"))
 
     expect(deadLetterQueue.add).not.toHaveBeenCalled()
-  })
-
-  it("email worker moves job to DLQ when max attempts reached", async () => {
-    const { createEmailWorker } = await import("../workers")
-    const { deadLetterQueue } = await import("../queues")
-
-    const processor = vi.fn()
-    const worker = createEmailWorker(processor) as any
-
-    const failedJob = {
-      id: "email-job-1",
-      name: "send",
-      data: {
-        template: "draft_saved",
-        recipient: "test@example.com",
-        locale: "en",
-        data: {},
-      },
-      failedReason: "SMTP error",
-      attemptsMade: 5,
-      opts: { attempts: 5 },
-    }
-
-    await worker.emit("failed", failedJob, new Error("SMTP error"))
-
-    expect(deadLetterQueue.add).toHaveBeenCalledWith(
-      "dead-letter",
-      expect.objectContaining({
-        originalQueue: "email",
-        originalJobId: "email-job-1",
-        payload: failedJob.data,
-      })
-    )
   })
 })

@@ -21,9 +21,8 @@ export function getConnectionOptions(): RedisOptions {
     username: url.username || undefined,
     maxRetriesPerRequest: null, // Required by BullMQ
     retryStrategy(times: number) {
-      // Stop retrying after 5 attempts in development to avoid log spam
-      if (process.env.NODE_ENV !== "production" && times > 5) return null
-      // Exponential backoff: min 1s, max 30s
+      // Exponential backoff: min 1s, max 30s. Retries indefinitely since
+      // Redis is optional (jobs just queue up until it's reachable).
       const delay = Math.min(Math.pow(2, times) * 1000, 30_000)
       console.warn(
         `[jobs] Redis connection attempt ${times} failed. Retrying in ${delay}ms...`

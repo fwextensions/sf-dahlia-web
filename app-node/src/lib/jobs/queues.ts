@@ -1,5 +1,5 @@
 /**
- * BullMQ queue setup for fileAttachment and email jobs.
+ * BullMQ queue setup for fileAttachment jobs.
  *
  * Retry strategy: exponential backoff delay = 2^N seconds for N = 0..4
  * (delays of 1s, 2s, 4s, 8s, 16s for attempts 1–5).
@@ -9,7 +9,7 @@
 import { Queue, type JobsOptions } from "bullmq"
 
 import { getConnectionOptions } from "./connection"
-import type { EmailJob, FileAttachmentJob } from "./types"
+import type { FileAttachmentJob } from "./types"
 
 const connection = getConnectionOptions()
 
@@ -53,25 +53,9 @@ fileAttachmentQueue.on("error", (err) => {
   console.warn("[jobs] fileAttachmentQueue connection error (unavailable):", err.message)
 })
 
-/** Email sending queue */
-export const emailQueue = new Queue<EmailJob>("email", {
-  connection,
-  defaultJobOptions: DEFAULT_JOB_OPTIONS,
-})
-emailQueue.on("error", (err) => {
-  console.warn("[jobs] emailQueue connection error (unavailable):", err.message)
-})
-
 /**
  * Enqueue a file attachment job.
  */
 export async function enqueueFileAttachment(data: FileAttachmentJob) {
   return fileAttachmentQueue.add("attach", data)
-}
-
-/**
- * Enqueue an email job.
- */
-export async function enqueueEmail(data: EmailJob) {
-  return emailQueue.add("send", data)
 }

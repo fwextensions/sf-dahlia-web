@@ -24,11 +24,4 @@ export interface FileAttachmentJob {
   files: UploadedFile[]
 }
 
-export interface EmailJob {
-  template: "application_confirmation" | "draft_saved" | "account_update"
-  recipient: string
-  locale: string
-  data: Record<string, unknown>
-}
-
-export type JobType = "fileAttachment" | "email"
+export type JobType = "fileAttachment"

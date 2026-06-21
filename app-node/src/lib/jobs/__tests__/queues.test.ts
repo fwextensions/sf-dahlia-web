@@ -12,6 +12,9 @@ vi.mock("bullmq", () => {
       this.name = name
       this.opts = opts
     }
+    on() {
+      return this
+    }
   }
 
   class MockWorker {
@@ -65,12 +68,6 @@ describe("Job Queues", () => {
     expect(fileAttachmentQueue.name).toBe("fileAttachment")
   })
 
-  it("should create email queue", async () => {
-    const { emailQueue } = await import("../queues")
-
-    expect(emailQueue.name).toBe("email")
-  })
-
   it("should create dead letter queue", async () => {
     const { deadLetterQueue } = await import("../queues")
 
@@ -106,19 +103,5 @@ describe("Job Queues", () => {
 
     await enqueueFileAttachment(data)
     expect(fileAttachmentQueue.add).toHaveBeenCalledWith("attach", data)
-  })
-
-  it("enqueueEmail adds job to email queue", async () => {
-    const { enqueueEmail, emailQueue } = await import("../queues")
-
-    const data = {
-      template: "application_confirmation" as const,
-      recipient: "user@example.com",
-      locale: "en",
-      data: { name: "John" },
-    }
-
-    await enqueueEmail(data)
-    expect(emailQueue.add).toHaveBeenCalledWith("send", data)
   })
 })
