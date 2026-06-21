@@ -1,5 +1,4 @@
 import { StartClient } from "@tanstack/react-start/client"
-import { StrictMode } from "react"
 import { hydrateRoot } from "react-dom/client"
 import { getCurrentLanguage, loadTranslations } from "../../app/javascript/util/languageUtil"
 import { initI18nFromStore } from "./lib/i18n/store"
@@ -23,12 +22,13 @@ async function bootstrap() {
     console.error("[client] translation init failed before hydrate:", err)
   }
 
-  hydrateRoot(
-    document,
-    <StrictMode>
-      <StartClient />
-    </StrictMode>
-  )
+  // NOTE: do not wrap in <StrictMode>. In dev, StrictMode double-invokes effects,
+  // and the second invocation fires a router state update before TanStack Start's
+  // dehydrated Suspense boundary finishes hydrating — React then aborts SSR
+  // hydration and switches the boundary to client rendering ("This Suspense
+  // boundary received an update before it finished hydrating"). TanStack Start's
+  // router hydration is not StrictMode-safe; its recommended client entry omits it.
+  hydrateRoot(document, <StartClient />)
 }
 
 void bootstrap()
