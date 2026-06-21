@@ -208,7 +208,7 @@ async function getServerDeps() {
  * Integrates caching and retry logic.
  */
 export const getListings = createServerFn({ method: "GET" })
-  .inputValidator((data: ListingsInput) => data)
+  .validator((data: ListingsInput) => data)
   .handler(async ({ data }): Promise<ListingsLoaderData> => {
     const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
@@ -255,7 +255,7 @@ export const getListings = createServerFn({ method: "GET" })
  * Used by the ListingDetail page.
  */
 export const getListingDetail = createServerFn({ method: "GET" })
-  .inputValidator((data: ListingDetailInput) => data)
+  .validator((data: ListingDetailInput) => data)
   .handler(async ({ data }): Promise<SerializableListing> => {
     const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
@@ -284,7 +284,7 @@ export const getListingDetail = createServerFn({ method: "GET" })
  * Fetches units for a specific listing.
  */
 export const getListingUnits = createServerFn({ method: "GET" })
-  .inputValidator((data: ListingByIdInput) => data)
+  .validator((data: ListingByIdInput) => data)
   .handler(async ({ data }): Promise<SerializableUnit[]> => {
     const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
@@ -313,7 +313,7 @@ export const getListingUnits = createServerFn({ method: "GET" })
  * Fetches preferences for a specific listing.
  */
 export const getListingPreferences = createServerFn({ method: "GET" })
-  .inputValidator((data: ListingByIdInput) => data)
+  .validator((data: ListingByIdInput) => data)
   .handler(async ({ data }): Promise<SerializablePreference[]> => {
     const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
@@ -343,7 +343,7 @@ export const getListingPreferences = createServerFn({ method: "GET" })
  * Used on listing detail pages to show lottery preference buckets.
  */
 export const getListingLotteryBuckets = createServerFn({ method: "GET" })
-  .inputValidator((data: ListingByIdInput) => data)
+  .validator((data: ListingByIdInput) => data)
   .handler(async ({ data }): Promise<SerializableLotteryBucket[]> => {
     const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
@@ -373,7 +373,7 @@ export const getListingLotteryBuckets = createServerFn({ method: "GET" })
  * Used on listing detail pages for individual lottery result lookup.
  */
 export const getListingLotteryRanking = createServerFn({ method: "GET" })
-  .inputValidator((data: LotteryRankingInput) => data)
+  .validator((data: LotteryRankingInput) => data)
   .handler(async ({ data }): Promise<SerializableLotteryRanking> => {
     const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
@@ -404,7 +404,7 @@ export const getListingLotteryRanking = createServerFn({ method: "GET" })
  * Used on listing pages for income eligibility calculations.
  */
 export const getAmiData = createServerFn({ method: "GET" })
-  .inputValidator((data: AmiInput) => data)
+  .validator((data: AmiInput) => data)
   .handler(async ({ data }): Promise<SerializableAmiLevel[]> => {
     const { cacheService, proxyClient, withRetry } = await getServerDeps()
 
@@ -446,7 +446,7 @@ export const getAmiData = createServerFn({ method: "GET" })
  * getAmiChartMetaDataFromUnits (see lib/listings/ami.ts).
  */
 export const getListingAmiCharts = createServerFn({ method: "GET" })
-  .inputValidator((data: { charts: AmiChartMetaInput[] }) => data)
+  .validator((data: { charts: AmiChartMetaInput[] }) => data)
   .handler(async ({ data }): Promise<SerializableAmiChart[]> => {
     if (!data.charts.length) return []
 
@@ -492,7 +492,7 @@ export const getListingAmiCharts = createServerFn({ method: "GET" })
  * Used on listing directory pages for eligibility filtering.
  */
 export const getEligibleListings = createServerFn({ method: "GET" })
-  .inputValidator((data: EligibilityInput) => data)
+  .validator((data: EligibilityInput) => data)
   .handler(async ({ data }): Promise<SerializableListing[]> => {
     const { cacheService, proxyClient, withRetry } = await getServerDeps()
 

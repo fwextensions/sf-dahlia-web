@@ -42,7 +42,7 @@ export class ValidationError extends Error {
  * Usage:
  * ```ts
  * const myServerFn = createServerFn({ method: "POST" })
- *   .inputValidator(createValidatedInput(myZodSchema))
+ *   .validator(createValidatedInput(myZodSchema))
  *   .handler(async ({ data }) => { ... })
  * ```
  *

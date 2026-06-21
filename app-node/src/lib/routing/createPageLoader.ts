@@ -17,7 +17,7 @@ export interface PageLoaderData {
  * Uses dynamic imports to keep Node.js file system code server-only.
  */
 const fetchPageTranslations = createServerFn({ method: "GET" })
-  .inputValidator((data: { langParam?: string }) => data)
+  .validator((data: { langParam?: string }) => data)
   .handler(async ({ data }): Promise<PageLoaderData> => {
     const { resolveLocaleFromParam } = await import("../../i18n")
     const { getTranslations } = await import("../../i18n/loader")

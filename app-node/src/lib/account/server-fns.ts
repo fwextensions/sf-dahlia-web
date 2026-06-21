@@ -124,7 +124,7 @@ export const getMyApplications = createServerFn({ method: "GET" })
  * Validates input with Zod, authenticates, resolves SF contact, then updates.
  */
 export const updateProfile = createServerFn({ method: "POST" })
-  .inputValidator((data: UpdateProfileInput) => updateProfileSchema.parse(data))
+  .validator((data: UpdateProfileInput) => updateProfileSchema.parse(data))
   .handler(async ({ data }): Promise<SerializableContact> => {
     const { contactId } = await resolveAuthenticatedContact()
 

@@ -2,7 +2,6 @@ import { defineConfig } from "vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
-import tsconfigPaths from "vite-tsconfig-paths"
 import path from "node:path"
 import fs from "node:fs"
 
@@ -37,6 +36,24 @@ function loadRailsFrontendEnv(): Record<string, string> {
 }
 
 const railsEnv = loadRailsFrontendEnv()
+
+// Vite 8 bundles with Rolldown, which surfaces two harmless warnings:
+//   1. react-helmet-async ships a misplaced `/*#__PURE__*/` annotation that
+//      Rolldown can't interpret. It's a third-party bug we can't fix here.
+//   2. INVALID_ANNOTATION otherwise. Everything else falls through to the
+//      default handler so real warnings are not hidden.
+function onwarn(
+  warning: { code?: string; message: string },
+  defaultHandler: (warning: { code?: string; message: string }) => void
+) {
+  if (
+    warning.code === "INVALID_ANNOTATION" &&
+    warning.message.includes("react-helmet-async")
+  ) {
+    return
+  }
+  defaultHandler(warning)
+}
 
 // TanStack Start's SSR stream watchdog ("Stream lifetime exceeded") emits an
 // unhandled 'error' event when a stream hangs past 120s (e.g. a request that
@@ -77,6 +94,13 @@ const railsEnvDefine = Object.fromEntries(
 
 export default defineConfig({
   define: railsEnvDefine,
+  build: {
+    // The main client bundle and the locale chunks are intentionally large
+    // (full i18n catalogs + app shell). Raise the limit so these expected
+    // chunks don't emit a size warning on every build.
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: { onwarn },
+  },
   server: {
     port: 3001,
     // In dev, forward non-migrated Rails API calls straight to Rails.
@@ -113,7 +137,6 @@ export default defineConfig({
     include: ["react-dom/server"],
   },
   plugins: [
-    tsconfigPaths(),
     // Process Tailwind via the Vite plugin (not @tailwindcss/postcss). It
     // resolves @apply against the full theme even when the dev server transforms
     // CSS modules independently, which the PostCSS plugin couldn't — clearing the
@@ -128,6 +151,9 @@ export default defineConfig({
     viteReact(),
   ],
   resolve: {
+    // Vite 8 resolves tsconfig `paths` natively, replacing the
+    // vite-tsconfig-paths plugin.
+    tsconfigPaths: true,
     // The original Rails frontend code in ../app/javascript resolves its
     // dependencies from the repo-root node_modules. Dedupe singletons so the
     // Rails pages and app-node share one copy (two React copies break hooks;
@@ -165,6 +191,7 @@ export default defineConfig({
     client: {
       build: {
         rollupOptions: {
+          onwarn,
           // Externalize server-only packages from the client bundle.
           // These modules are only used in server functions and should never
           // be included in browser code.

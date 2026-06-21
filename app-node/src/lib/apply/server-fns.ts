@@ -222,7 +222,7 @@ async function resolveAuthenticatedContact() {
  * was saved from Rails or Node (cross-server compatibility).
  */
 export const getDraftApplication = createServerFn({ method: "GET" })
-  .inputValidator((data: z.infer<typeof getDraftSchema>) => getDraftSchema.parse(data))
+  .validator((data: z.infer<typeof getDraftSchema>) => getDraftSchema.parse(data))
   .handler(async ({ data }): Promise<DraftApplicationResult> => {
     const { contactId } = await resolveAuthenticatedContact()
 
@@ -255,7 +255,7 @@ export const getDraftApplication = createServerFn({ method: "GET" })
  * ensuring cross-server compatibility for draft resume.
  */
 export const saveDraft = createServerFn({ method: "POST" })
-  .inputValidator((data: DraftApplicationInput) => saveDraftSchema.parse(data))
+  .validator((data: DraftApplicationInput) => saveDraftSchema.parse(data))
   .handler(async ({ data }): Promise<DraftApplicationData> => {
     await resolveAuthenticatedContact()
 
@@ -320,7 +320,7 @@ export const saveDraft = createServerFn({ method: "POST" })
  * Validates: Requirements 7.1, 7.4, 7.7
  */
 export const submitApplication = createServerFn({ method: "POST" })
-  .inputValidator((data: SubmitApplicationInput) => submitApplicationSchema.parse(data))
+  .validator((data: SubmitApplicationInput) => submitApplicationSchema.parse(data))
   .handler(async ({ data }): Promise<SubmitApplicationResult | SubmitApplicationError> => {
     const { user, contactId } = await resolveAuthenticatedContact()
 
@@ -455,7 +455,7 @@ export const submitApplication = createServerFn({ method: "POST" })
  * Returns the S3 URL so the form can reference it when submitting.
  */
 export const uploadFile = createServerFn({ method: "POST" })
-  .inputValidator((data: z.infer<typeof uploadFileSchema>) => uploadFileSchema.parse(data))
+  .validator((data: z.infer<typeof uploadFileSchema>) => uploadFileSchema.parse(data))
   .handler(async ({ data }): Promise<UploadFileResult> => {
     await resolveAuthenticatedContact()
 
@@ -487,7 +487,7 @@ export const uploadFile = createServerFn({ method: "POST" })
  * Used for applicant home address and mailing address fields.
  */
 export const validateApplicationAddress = createServerFn({ method: "POST" })
-  .inputValidator((data: z.infer<typeof validateAddressSchema>) => validateAddressSchema.parse(data))
+  .validator((data: z.infer<typeof validateAddressSchema>) => validateAddressSchema.parse(data))
   .handler(async ({ data }) => {
     const { validateAddress } = await import("../address/easypost")
     return validateAddress(data)
