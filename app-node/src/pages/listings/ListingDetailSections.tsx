@@ -30,6 +30,7 @@ import {
   Heading,
   Icon,
   InfoCard,
+  LinkButton,
   ListSection,
   ListingDetailItem,
   StandardTable,
@@ -558,6 +559,8 @@ export function AdditionalInfoSection({
   const otherNotes = str(r.Listing_Other_Notes)
   const requiredDocs = str(r.Required_Documents)
   const legal = str(r.Legal_Disclaimers)
+  const ccAndRUrl = str(r.CC_and_R_URL)
+  const repricing = str(r.Repricing_Mechanism)
 
   return (
     <ListingDetailItem
@@ -573,6 +576,18 @@ export function AdditionalInfoSection({
         )}
         {legal && (
           <InfoBlock title={t("listings.importantProgramRules")}>{renderMarkup(stripMostTags(legal))}</InfoBlock>
+        )}
+        {ccAndRUrl && (
+          <InfoBlock title={t("listings.cc&r")}>
+            {t("listings.cc&rDescription")}
+            <br />
+            <LinkButton href={ccAndRUrl} className="mt-4" newTab>
+              {t("listings.downloadPdf")}
+            </LinkButton>
+          </InfoBlock>
+        )}
+        {repricing && (
+          <InfoBlock title={t("listings.rePricing")}>{renderMarkup(stripMostTags(repricing))}</InfoBlock>
         )}
       </div>
     </ListingDetailItem>

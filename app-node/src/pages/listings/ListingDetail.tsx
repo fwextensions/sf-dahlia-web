@@ -50,6 +50,14 @@ import {
   renderMarkup,
 } from "../../../../app/javascript/util/languageUtil"
 import { ListingDetailsChisholmPreferences } from "../../../../app/javascript/modules/listingDetails/ListingDetailsChisholmPreferences"
+import { ListingDetailsSeeTheUnit } from "../../../../app/javascript/modules/listingDetailsAside/ListingDetailsSeeTheUnit"
+import { ListingDetailsInfoSession } from "../../../../app/javascript/modules/listingDetailsAside/ListingDetailsInfoSession"
+import {
+  BeforeApplyingForSale,
+  BeforeApplyingType,
+} from "../../../../app/javascript/components/BeforeApplyingForSale"
+import { isCSLP, isHabitatListing } from "../../../../app/javascript/util/listingUtil"
+import type { RailsListing } from "../../../../app/javascript/modules/listings/SharedHelpers"
 import type {
   SerializableAmiChart,
   SerializableListing,
@@ -124,9 +132,16 @@ interface RawListing {
   Lottery_Street_Address?: string | null
   LotteryResultsURL?: string | null
   LastModifiedDate?: string | null
+  Expected_Move_in_Date?: string | null
 }
 
 const raw = (listing: SerializableListing): RawListing => listing as unknown as RawListing
+
+// Several reused Rails aside/eligibility components are typed against the full
+// RailsListing; the native page carries the serializable subset (with the raw
+// Salesforce fields present at runtime), so cast at the boundary.
+const asRails = (listing: SerializableListing): RailsListing =>
+  listing as unknown as RailsListing
 
 // Fallback while a deferred section streams in. Mirrors the spinner the Rails
 // pricing table shows during its client-side fetch.
@@ -149,6 +164,9 @@ function isApplicationOpen(listing: SerializableListing): boolean {
 
 const isRental = (listing: SerializableListing): boolean =>
   listing.Tenure === TENURE_TYPES.NEW_RENTAL || listing.Tenure === TENURE_TYPES.RE_RENTAL
+
+const isSale = (listing: SerializableListing): boolean =>
+  listing.Tenure === TENURE_TYPES.NEW_SALE || listing.Tenure === TENURE_TYPES.RESALE
 
 const isEducator = (listing: SerializableListing): boolean =>
   listing.Custom_Listing_Type === CUSTOM_LISTING_TYPES.EDUCATOR_ONE ||
@@ -333,14 +351,69 @@ function ApplySidebar({ listing }: { listing: SerializableListing }) {
   )
 }
 
-function NeedHelp() {
+// SSR-safe reimplementation of NeedHelpBlock. The Rails version calls
+// getHousingCounselorsPath(), which reads window.location at call time and
+// crashes SSR; the rental path here is a static localized-agnostic link instead.
+function NeedHelp({ listing }: { listing: SerializableListing }) {
+  const rental = isRental(listing)
   return (
     <div className="md:px-0 px-2">
       <SidebarBlock title={t("listings.apply.needHelp")} priority={2}>
-        <div className="mb-4">{t("listings.apply.visitAHousingCounselor")}</div>
-        <LinkButton transition newTab href="/housing-counselors" className="w-full">
+        <div className="mb-4">
+          {rental
+            ? t("listings.apply.visitAHousingCounselor")
+            : t("listingDetails.sales.aside.needHelp")}
+        </div>
+        <LinkButton
+          transition
+          newTab
+          href={
+            rental
+              ? "/housing-counselors"
+              : getSfGovUrl("https://www.sf.gov/resource/2022/homebuyer-program-counseling-agencies")
+          }
+          className="w-full"
+        >
           {t("housingCounselor.findAHousingCounselor")}
         </LinkButton>
+      </SidebarBlock>
+    </div>
+  )
+}
+
+function ExpectedMoveInDate({ listing }: { listing: SerializableListing }) {
+  const date = raw(listing).Expected_Move_in_Date as string | undefined
+  if (!date) return null
+  return (
+    <SidebarBlock title={t("listings.expectedMoveinDate")} priority={2}>
+      {localizedFormat(date, "MMMM YYYY")}
+    </SidebarBlock>
+  )
+}
+
+function HousingProgram({ listing }: { listing: SerializableListing }) {
+  return (
+    <div className="border-b border-gray-400 md:border-b-0 last:border-b-0">
+      <SidebarBlock title={t("listings.housingProgram")} priority={2}>
+        {isCSLP(asRails(listing)) ? (
+          <a
+            href="https://www.sf.gov/reports--december-2024--city-second-program-current-listings"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-base"
+          >
+            {t("saleDirectory.callout.citySecondLoan")}
+          </a>
+        ) : (
+          <a
+            href="https://www.sf.gov/resource--2022--apply-homebuyer-programs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-base"
+          >
+            {t("listings.belowMarketRate")}
+          </a>
+        )}
       </SidebarBlock>
     </div>
   )
@@ -457,6 +530,7 @@ function ContactAgent({ listing }: { listing: SerializableListing }) {
 function Aside({ listing }: { listing: SerializableListing }) {
   const open = isApplicationOpen(listing)
   const rental = isRental(listing)
+  const sale = isSale(listing)
   return (
     <ListingDetailItem
       imageAlt=""
@@ -472,12 +546,17 @@ function Aside({ listing }: { listing: SerializableListing }) {
             <ApplicationStatusBanner listing={listing} />
           </div>
           <LotteryInfo listing={listing} />
+          {open && <ListingDetailsInfoSession listing={asRails(listing)} />}
+          {/* Sales listings show open houses inside "See the unit" instead. */}
           {rental && <OpenHouses listing={listing} />}
           <ApplySidebar listing={listing} />
-          {open && rental && <NeedHelp />}
+          {sale && <ListingDetailsSeeTheUnit listing={asRails(listing)} />}
+          {open && !isHabitatListing(asRails(listing)) && <NeedHelp listing={listing} />}
+          {sale && <ExpectedMoveInDate listing={listing} />}
           <PublicLotteryEvent listing={listing} />
           <WhatToExpect />
           <ContactAgent listing={listing} />
+          {sale && <HousingProgram listing={listing} />}
         </div>
       </aside>
     </ListingDetailItem>
@@ -679,6 +758,15 @@ function EligibilitySection({
       desktopClass="bg-primary-lighter"
     >
       <ul>
+        {isSale(listing) && (
+          <BeforeApplyingForSale
+            beforeApplyingType={
+              isHabitatListing(asRails(listing))
+                ? BeforeApplyingType.LISTING_DETAILS_HABITAT
+                : BeforeApplyingType.LISTING_DETAILS
+            }
+          />
+        )}
         {educator && <EducatorEligibilityCopy />}
         <HouseholdMaxIncomeTable listing={listing} units={units} amiCharts={amiCharts} />
         <OccupancyTable listing={listing} />
