@@ -22,6 +22,10 @@ import {
   type StackedDataFxnType,
 } from "../../../../app/javascript/modules/listings/DirectoryHelpers"
 import { defaultIfNotTranslated } from "../../../../app/javascript/util/languageUtil"
+import {
+  BeforeApplyingForSale,
+  BeforeApplyingType,
+} from "../../../../app/javascript/components/BeforeApplyingForSale"
 import { useState } from "react"
 import { ListingsGroupHeader } from "./components/ListingsGroupHeader"
 import { ListingsGroup } from "./components/ListingsGroup"
@@ -202,6 +206,9 @@ export function SaleDirectory({ listings }: SaleDirectoryProps) {
             <a href="#nav-bar-container" className="button is-primary is-fullwidth">
               {t("saleDirectory.seeHomesForSale")}
             </a>
+          </div>
+          <div className="buy-header_left_col">
+            <BeforeApplyingForSale beforeApplyingType={BeforeApplyingType.DIRECTORY} />
           </div>
         </div>
       </div>
