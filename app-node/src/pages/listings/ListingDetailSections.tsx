@@ -46,6 +46,7 @@ import {
 } from "../../../../app/javascript/util/listingUtil"
 import { renderMarkup } from "../../../../app/javascript/util/languageUtil"
 import { stripMostTags } from "../../../../app/javascript/util/filterUtil"
+import { getFlag, FLAGS } from "../../lib/flags/store"
 import type RailsUnit from "../../../../app/javascript/api/types/rails/listings/RailsUnit"
 import type { RailsAmiChart, RailsAmiChartValue } from "../../../../app/javascript/api/types/rails/listings/RailsAmiChart"
 import type { SerializableAmiChart, SerializableListing, SerializableUnit } from "../../lib/listings/server-fns"
@@ -509,10 +510,13 @@ export function NeighborhoodSection({
     .map(str)
     .filter(Boolean)
     .join(", ")
-  // Without a Maps API key the embed renders a blank 450px box; skip the section
-  // entirely so it doesn't leave a large empty gap. (Rails always shows it because
-  // GOOGLE_PLACES_KEY is configured in that environment.)
-  if (!address || !process.env.GOOGLE_PLACES_KEY) return null
+  // Gated behind the neighborhoodHeader Unleash flag, like Rails'
+  // ListingDetailsNeighborhood. Also requires an address and a Maps API key —
+  // without the key the embed is a blank 450px box, so skip it entirely. (Rails
+  // always has GOOGLE_PLACES_KEY configured; app-node may not.)
+  if (!getFlag(FLAGS.NEIGHBORHOOD_HEADER) || !address || !process.env.GOOGLE_PLACES_KEY) {
+    return null
+  }
 
   const iframeUrl = `https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_PLACES_KEY}&q=${encodeURIComponent(
     address
@@ -562,16 +566,18 @@ export function AdditionalInfoSection({
   const ccAndRUrl = str(r.CC_and_R_URL)
   const repricing = str(r.Repricing_Mechanism)
 
-  // "For the Buyer's Agent" / agent compensation. In Rails this is gated behind
-  // the temp.webapp.listingDetail.realtorSection Unleash flag; app-node has no
-  // Unleash, so render it from data alone (matches dahlia-full where the flag is
-  // on). Mirrors ListingDetailsAdditionalInformation's showAgentCompensationSection.
+  // "For the Buyer's Agent" / agent compensation, gated behind the
+  // realtorSection Unleash flag exactly like Rails'
+  // ListingDetailsAdditionalInformation.showAgentCompensationSection.
   const commissionAmount = r.Realtor_Commission_Amount as number | null | undefined
   const commissionUnit = str(r.Realtor_Commission_Unit)
   const commissionInfo = str(r.Realtor_Commission_Info)
   const showCommission = commissionAmount != null && !!commissionUnit
   const showAgentCompensation =
-    isSale(rl(listing)) && !!r.Allows_Realtor_Commission && (showCommission || !!commissionInfo)
+    isSale(rl(listing)) &&
+    !!r.Allows_Realtor_Commission &&
+    getFlag(FLAGS.REALTOR_SECTION) &&
+    (showCommission || !!commissionInfo)
   const commissionString =
     commissionUnit === "percent"
       ? t("listings.realtorCommissionPercentage", { percentage: commissionAmount })

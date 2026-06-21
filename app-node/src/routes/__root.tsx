@@ -19,6 +19,12 @@ import {
   serializeI18nStore,
   type I18nStore,
 } from "../lib/i18n/store"
+import {
+  initFlagsFromStore,
+  serializeFlagsStore,
+  type FlagsStore,
+} from "../lib/flags/store"
+import { buildFlagsStore } from "../lib/flags/unleash"
 import { getCurrentLanguage } from "../../../app/javascript/util/languageUtil"
 
 // Import global styles - Vite injects these as a blocking <link> in <head> during SSR,
@@ -51,6 +57,10 @@ const clerkEnabled = CLERK_PUBLISHABLE_KEY.startsWith("pk_")
 // concurrent SSR needs request-scoping (AsyncLocalStorage), see the plan doc.
 let pendingI18nStore: I18nStore | null = null
 
+// Same pattern for the per-request feature-flag store: evaluated server-side in
+// beforeLoad, serialized in the head render, read on the client at hydrate.
+let pendingFlagsStore: FlagsStore | null = null
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -82,6 +92,15 @@ export const Route = createRootRoute({
     initI18nFromStore(store)
     if (typeof window === "undefined") {
       pendingI18nStore = store
+    }
+
+    // Evaluate feature flags on the server only. On client navigations the store
+    // is already active (initialized at hydrate from the serialized value), and
+    // the Unleash token must never run in the browser, so skip the fetch there.
+    if (typeof window === "undefined") {
+      const flags = await buildFlagsStore()
+      initFlagsFromStore(flags)
+      pendingFlagsStore = flags
     }
   },
   component: RootComponent,
@@ -133,6 +152,8 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   // script set during SSR — identical content, so no hydration mismatch.
   const i18nStore =
     typeof window === "undefined" ? pendingI18nStore : window.__DAHLIA_I18N__ ?? null
+  const flagsStore =
+    typeof window === "undefined" ? pendingFlagsStore : window.__DAHLIA_FLAGS__ ?? null
 
   return (
     <html lang="en">
@@ -143,6 +164,12 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
           <script
             // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: serializeI18nStore(i18nStore) }}
+          />
+        )}
+        {flagsStore && (
+          <script
+            // eslint-disable-next-line react/no-danger
+            dangerouslySetInnerHTML={{ __html: serializeFlagsStore(flagsStore) }}
           />
         )}
         <HeadContent />

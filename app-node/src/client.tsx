@@ -2,6 +2,7 @@ import { StartClient } from "@tanstack/react-start/client"
 import { hydrateRoot } from "react-dom/client"
 import { getCurrentLanguage, loadTranslations } from "../../app/javascript/util/languageUtil"
 import { initI18nFromStore } from "./lib/i18n/store"
+import { initFlagsFromStore } from "./lib/flags/store"
 
 // Initialize translations before hydrating so the client's t() resolves the same
 // strings the server rendered — otherwise SSR'd pages hydrate with "Missing
@@ -20,6 +21,13 @@ async function bootstrap() {
     }
   } catch (err) {
     console.error("[client] translation init failed before hydrate:", err)
+  }
+
+  // Activate the feature-flag store the server serialized, so getFlag() resolves
+  // the same values the SSR render used (no flash, no hydration mismatch). The
+  // browser never contacts Unleash — it reads these serialized values.
+  if (window.__DAHLIA_FLAGS__) {
+    initFlagsFromStore(window.__DAHLIA_FLAGS__)
   }
 
   // NOTE: do not wrap in <StrictMode>. In dev, StrictMode double-invokes effects,

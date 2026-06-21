@@ -75,6 +75,7 @@ import type {
   SerializableUnit,
 } from "../../lib/listings/server-fns"
 import { getListingAddress } from "../../lib/listings/display"
+import { getFlag, FLAGS } from "../../lib/flags/store"
 import { PricingTable } from "./PricingTable"
 import {
   AdditionalEligibilityRules,
@@ -382,9 +383,14 @@ function ApplySidebar({ listing }: { listing: SerializableListing }) {
       </SidebarBlock>
     )
   }
+  // Form-engine flag selects the apply entry point, mirroring Rails'
+  // StandardHowToApply (apply/intro under the new engine, else apply-welcome).
+  const applyHref = getFlag(FLAGS.FORM_ENGINE)
+    ? `/listings/${listing.listingID}/apply/intro`
+    : `/listings/${listing.listingID}/apply-welcome/intro`
   return (
     <SidebarBlock title={t("listings.apply.howToApply")} priority={2}>
-      <LinkButton className="w-full" href={`/listings/${listing.listingID}/apply/intro`}>
+      <LinkButton className="w-full" href={applyHref}>
         {t("label.applyOnline")}
       </LinkButton>
     </SidebarBlock>

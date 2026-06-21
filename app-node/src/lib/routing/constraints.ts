@@ -7,6 +7,8 @@
  */
 
 import { getListingDetail } from "../listings/server-fns"
+import { buildFlagsStore } from "../flags/unleash"
+import { FLAGS } from "../flags/store"
 
 interface Listing {
   Custom_Listing_Type?: string
@@ -72,13 +74,12 @@ export async function howToApplyConstraint(listingId: string): Promise<boolean> 
 }
 
 /**
- * AccountLayoutConstraint: Returns true if the new account layout feature flag is enabled.
- * This checks an Unleash feature flag. For the Node implementation, we use an
- * environment variable or a feature flag service call.
+ * AccountLayoutConstraint: Returns true if the new account layout feature flag
+ * is enabled. Evaluates the Unleash flag server-side (cached); on evaluation
+ * failure the flag is treated as off, matching Rails' default for this flag.
  */
 export async function accountLayoutConstraint(): Promise<boolean> {
-  // In the Node app, feature flag checking will use Unleash SDK.
-  // For now, we check an environment variable that can be set by the Unleash integration.
-  const flagValue = process.env.FEATURE_NEW_ACCOUNT_LAYOUT
-  return flagValue === "true" || flagValue === "1"
+  const flags = await buildFlagsStore()
+  if (flags.error) return false
+  return flags.enabled.includes(FLAGS.NEW_ACCOUNT_LAYOUT)
 }

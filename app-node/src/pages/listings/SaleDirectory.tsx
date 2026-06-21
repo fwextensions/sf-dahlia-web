@@ -26,6 +26,8 @@ import {
   BeforeApplyingForSale,
   BeforeApplyingType,
 } from "../../../../app/javascript/components/BeforeApplyingForSale"
+import { renderInlineMarkup } from "../../../../app/javascript/util/languageUtil"
+import { getFlag, FLAGS } from "../../lib/flags/store"
 import { useState } from "react"
 import { ListingsGroupHeader } from "./components/ListingsGroupHeader"
 import { ListingsGroup } from "./components/ListingsGroup"
@@ -177,6 +179,29 @@ function FindMoreActionBlock() {
   )
 }
 
+// DALP (Downpayment Assistance Loan Program) header block, shown in the
+// directory header when the directory.dalp flag is on. Ported from the local
+// DalpHeader in app/javascript/modules/listings/BuyHeader.tsx.
+function DalpHeader() {
+  return (
+    <div className="md:bg-white md:p-4">
+      <Heading styleType="underlineWeighted" className="mb-5" priority={2}>
+        {t("saleDirectory.dalp.title")}
+      </Heading>
+      <p className="mb-4">{t("saleDirectory.dalp.content")}</p>
+      <p className="font-bold">{t("saleDirectory.dalp.subtitle")}</p>
+      <p className="mb-4">{t("saleDirectory.dalp.subcontent")}</p>
+      <p className="mb-4">
+        {renderInlineMarkup(
+          t("saleDirectory.dalp.link", {
+            url: "https://www.sf.gov/apply-downpayment-loan-buy-market-rate-home",
+          })
+        )}
+      </p>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface SaleDirectoryProps {
@@ -210,6 +235,11 @@ export function SaleDirectory({ listings }: SaleDirectoryProps) {
           <div className="buy-header_left_col">
             <BeforeApplyingForSale beforeApplyingType={BeforeApplyingType.DIRECTORY} />
           </div>
+          {getFlag(FLAGS.DIRECTORY_DALP) && (
+            <div className="buy-header_right_col">
+              <DalpHeader />
+            </div>
+          )}
         </div>
       </div>
 
