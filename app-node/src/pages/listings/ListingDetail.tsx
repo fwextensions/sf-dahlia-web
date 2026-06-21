@@ -45,6 +45,7 @@ import {
   getCustomListingType,
   getReservedCommunityType,
   getSfGovUrl,
+  formatTimeOfDay,
   localizedFormat,
   renderInlineMarkup,
   renderMarkup,
@@ -56,7 +57,14 @@ import {
   BeforeApplyingForSale,
   BeforeApplyingType,
 } from "../../../../app/javascript/components/BeforeApplyingForSale"
-import { isCSLP, isHabitatListing } from "../../../../app/javascript/util/listingUtil"
+import {
+  getFcfsSalesListingState,
+  isCSLP,
+  isFcfsSalesListing,
+  isHabitatListing,
+} from "../../../../app/javascript/util/listingUtil"
+import { ListingState } from "../../../../app/javascript/modules/listings/ListingState"
+import { fcfsNoLotteryRequired } from "../../../../app/javascript/modules/noLotteryRequired/fcfsNoLotteryRequired"
 import type { RailsListing } from "../../../../app/javascript/modules/listings/SharedHelpers"
 import type {
   SerializableAmiChart,
@@ -80,6 +88,8 @@ import fallbackImg from "../../../../app/assets/images/bg@1200.jpg"
 import shareButton from "../../../../app/assets/images/share-button.svg"
 // Card chrome + checkmark bullets for the educator eligibility card.
 import "../../../../app/javascript/modules/listingDetails/ListingDetailsEligibility.css"
+// FCFS sales "How to apply" numbered-list styling.
+import "../../../../app/javascript/modules/listingDetailsAside/ListingDetailsApply.css"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -158,6 +168,11 @@ function SectionLoading() {
 // touch `window`, which crashes SSR). Kept faithful to the originals.
 
 function isApplicationOpen(listing: SerializableListing): boolean {
+  // FCFS sales listings have no lottery deadline — their open/closed state comes
+  // from status + Application_Start_Date_Time, not Application_Due_Date.
+  if (isFcfsSalesListing(asRails(listing))) {
+    return getFcfsSalesListingState(asRails(listing)) !== ListingState.Closed
+  }
   if (!listing.Application_Due_Date) return false
   return dayjs(listing.Application_Due_Date) > dayjs()
 }
@@ -342,6 +357,28 @@ function OpenHouses({ listing }: { listing: SerializableListing }) {
 
 function ApplySidebar({ listing }: { listing: SerializableListing }) {
   if (!isApplicationOpen(listing)) return null
+  // FCFS sales listings show numbered "how to apply" steps + Get started,
+  // pointing at the how-to-apply page instead of the online application.
+  if (isFcfsSalesListing(asRails(listing))) {
+    return (
+      <SidebarBlock
+        className="fcfs-bmr-how-to-apply"
+        title={t("listings.apply.howToApply")}
+        priority={2}
+      >
+        <div className="fcfs-bmr-how-to-apply__list">
+          <ol className="numbered-list text-black text-base">
+            <li>{t("listings.fcfs.bmrSales.howToApply.step1")}</li>
+            <li>{t("listings.fcfs.bmrSales.howToApply.step2")}</li>
+            <li>{t("listings.fcfs.bmrSales.howToApply.step3")}</li>
+          </ol>
+        </div>
+        <LinkButton className="w-full" href={`/listings/${listing.listingID}/how-to-apply`}>
+          {t("t.getStarted")}
+        </LinkButton>
+      </SidebarBlock>
+    )
+  }
   return (
     <SidebarBlock title={t("listings.apply.howToApply")} priority={2}>
       <LinkButton className="w-full" href={`/listings/${listing.listingID}/apply/intro`}>
@@ -545,6 +582,7 @@ function Aside({ listing }: { listing: SerializableListing }) {
           <div className="w-full mb-8 md:mb-0">
             <ApplicationStatusBanner listing={listing} />
           </div>
+          {isFcfsSalesListing(asRails(listing)) && fcfsNoLotteryRequired()}
           <LotteryInfo listing={listing} />
           {open && <ListingDetailsInfoSession listing={asRails(listing)} />}
           {/* Sales listings show open houses inside "See the unit" instead. */}
@@ -567,16 +605,35 @@ function Aside({ listing }: { listing: SerializableListing }) {
 
 function ApplicationStatusBanner({ listing }: { listing: SerializableListing }) {
   const open = isApplicationOpen(listing)
-  const dateStr = listing.Application_Due_Date
-  const message = open
-    ? t("listingDetails.applicationsDeadline.withDateTime", {
-        date: formatDate(dateStr),
-        time: dayjs(dateStr).format("h:mm A"),
+
+  let message: string
+  if (isFcfsSalesListing(asRails(listing))) {
+    // FCFS sales: no deadline. Closed shows a bare "applications closed";
+    // not-yet-open shows the start date/time; open shows a bare "applications open".
+    const state = getFcfsSalesListingState(asRails(listing))
+    const startDate = listing.Application_Start_Date_Time ?? ""
+    if (state === ListingState.Closed) {
+      message = t("listingDetails.applicationsClosed")
+    } else if (state === ListingState.NotYetOpen) {
+      message = t("listingDetails.applicationsOpen.withDateTime", {
+        date: localizedFormat(startDate, "LL"),
+        time: formatTimeOfDay(startDate),
       })
-    : t("listingDetails.applicationsClosed.withDateTime", {
-        date: formatDate(dateStr),
-        time: dayjs(dateStr).format("h:mm A"),
-      })
+    } else {
+      message = t("listingDetails.applicationsOpen")
+    }
+  } else {
+    const dateStr = listing.Application_Due_Date
+    message = open
+      ? t("listingDetails.applicationsDeadline.withDateTime", {
+          date: formatDate(dateStr),
+          time: dayjs(dateStr).format("h:mm A"),
+        })
+      : t("listingDetails.applicationsClosed.withDateTime", {
+          date: formatDate(dateStr),
+          time: dayjs(dateStr).format("h:mm A"),
+        })
+  }
 
   return (
     <Message
@@ -815,6 +872,9 @@ export function ListingDetail({
         {/* Mobile: application status */}
         <div className="md:hidden px-4 py-2">
           <ApplicationStatusBanner listing={listing} />
+          {isFcfsSalesListing(asRails(listing)) && (
+            <div className="mt-4">{fcfsNoLotteryRequired()}</div>
+          )}
           {isApplicationOpen(listing) && (
             <div className="mt-4">
               <ApplySidebar listing={listing} />
