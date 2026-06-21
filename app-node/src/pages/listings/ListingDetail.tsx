@@ -14,6 +14,7 @@
 import {
   Card,
   Contact,
+  Desktop,
   EventSection,
   ExpandableSection,
   Heading,
@@ -25,6 +26,7 @@ import {
   ListSection,
   ListingDetailItem,
   ListingDetails,
+  Mobile,
   PreferencesList,
   SidebarBlock,
   SiteAlert,
@@ -86,6 +88,7 @@ import {
 } from "./ListingDetailSections"
 import fallbackImg from "../../../../app/assets/images/bg@1200.jpg"
 import shareButton from "../../../../app/assets/images/share-button.svg"
+import logoEqual from "../../../../app/assets/images/logo-equal.png"
 // Card chrome + checkmark bullets for the educator eligibility card.
 import "../../../../app/javascript/modules/listingDetails/ListingDetailsEligibility.css"
 // FCFS sales "How to apply" numbered-list styling.
@@ -849,6 +852,28 @@ function EligibilitySection({
   )
 }
 
+// "Monitored by MOHCD" + equal-housing logo, the last panel inside
+// ListingDetails. Mirrors app/javascript/.../ListingDetailsMOHCD but imports the
+// logo via Vite instead of ConfigContext.getAssetPath (unavailable in app-node).
+function MohcdPanel() {
+  const inner = (
+    <div className="m-0 info-card flex items-center justify-between">
+      <p className="m-0 text-base text-serif-xl w-3/4">{t("listings.monitoredByMohcd")}</p>
+      <img alt={t("listings.equalHousingOpportunityLogo")} src={logoEqual} />
+    </div>
+  )
+  return (
+    <>
+      <Mobile>
+        <div className="listing-detail-panel p-0">{inner}</div>
+      </Mobile>
+      <Desktop>
+        <li className="listing-detail-panel p-0 list-none">{inner}</li>
+      </Desktop>
+    </>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ListingDetail({
@@ -922,10 +947,15 @@ export function ListingDetail({
 
           {/* Additional information */}
           <AdditionalInfoSection listing={listing} />
-        </ListingDetails>
 
-        <MailingListSignup />
+          {/* Monitored-by-MOHCD panel, last item in the details list. */}
+          <MohcdPanel />
+        </ListingDetails>
       </article>
+
+      {/* Outside the max-w-5xl article (matches Rails) so its background spans the
+          full viewport width and the absolute h-full aside stops above it. */}
+      <MailingListSignup />
     </div>
   )
 }
