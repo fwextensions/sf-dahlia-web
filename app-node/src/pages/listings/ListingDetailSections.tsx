@@ -562,6 +562,21 @@ export function AdditionalInfoSection({
   const ccAndRUrl = str(r.CC_and_R_URL)
   const repricing = str(r.Repricing_Mechanism)
 
+  // "For the Buyer's Agent" / agent compensation. In Rails this is gated behind
+  // the temp.webapp.listingDetail.realtorSection Unleash flag; app-node has no
+  // Unleash, so render it from data alone (matches dahlia-full where the flag is
+  // on). Mirrors ListingDetailsAdditionalInformation's showAgentCompensationSection.
+  const commissionAmount = r.Realtor_Commission_Amount as number | null | undefined
+  const commissionUnit = str(r.Realtor_Commission_Unit)
+  const commissionInfo = str(r.Realtor_Commission_Info)
+  const showCommission = commissionAmount != null && !!commissionUnit
+  const showAgentCompensation =
+    isSale(rl(listing)) && !!r.Allows_Realtor_Commission && (showCommission || !!commissionInfo)
+  const commissionString =
+    commissionUnit === "percent"
+      ? t("listings.realtorCommissionPercentage", { percentage: commissionAmount })
+      : `$${Number(commissionAmount).toLocaleString()}`
+
   return (
     <ListingDetailItem
       imageAlt=""
@@ -584,6 +599,22 @@ export function AdditionalInfoSection({
             <LinkButton href={ccAndRUrl} className="mt-4" newTab>
               {t("listings.downloadPdf")}
             </LinkButton>
+          </InfoBlock>
+        )}
+        {showAgentCompensation && (
+          <InfoBlock title={t("listings.agentCompensationTitle")}>
+            {showCommission && (
+              <>
+                <span className="font-bold">{t("listings.agentCompensationHeader")}</span>
+                {commissionString}
+              </>
+            )}
+            {commissionInfo && (
+              <div className="mt-4">
+                <span className="font-bold">{t("listings.agentCompensationInfo")}</span>
+                <span>{renderMarkup(stripMostTags(commissionInfo))}</span>
+              </div>
+            )}
           </InfoBlock>
         )}
         {repricing && (
