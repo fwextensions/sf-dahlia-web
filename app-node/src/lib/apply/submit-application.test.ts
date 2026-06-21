@@ -39,7 +39,10 @@ vi.mock("../salesforce/client", () => ({
 
 vi.mock("../jobs/queues", () => ({
   enqueueFileAttachment: vi.fn().mockResolvedValue({}),
-  enqueueEmail: vi.fn().mockResolvedValue({}),
+}))
+
+vi.mock("../messages/application-confirmation", () => ({
+  sendApplicationConfirmation: vi.fn().mockResolvedValue(undefined),
 }))
 
 describe("submitApplication logic", () => {
@@ -84,6 +87,16 @@ describe("submitApplication logic", () => {
     monthlyIncome: 4166,
   }
 
+  const mockListing = {
+    Name: "Test Listing",
+    Lottery_Date: "2024-03-01",
+    RecordType: { Name: "Rental" },
+    Leasing_Agent_Name: "Pat Lee",
+    Leasing_Agent_Email: "pat@example.com",
+    Leasing_Agent_Phone: "415-555-0100",
+    Office_Hours: "Mon-Fri 9-5",
+  }
+
   async function setupMocks(options?: {
     submitResult?: unknown
     submitError?: Error
@@ -101,6 +114,7 @@ describe("submitApplication logic", () => {
     const mockUpdate = options?.submitError
       ? vi.fn().mockRejectedValue(options.submitError)
       : vi.fn().mockResolvedValue(options?.submitResult ?? mockSubmittedApp)
+    const mockGetById = vi.fn().mockResolvedValue(mockListing)
 
     vi.mocked(createSalesforceProxyClient).mockReturnValue({
       shortForm: {
@@ -111,11 +125,11 @@ describe("submitApplication logic", () => {
         deleteApplication: vi.fn(),
         getLendingInstitutions: vi.fn(),
       },
-      listings: {} as any,
+      listings: { getById: mockGetById } as any,
       account: {} as any,
     })
 
-    return { mockSubmit, mockUpdate }
+    return { mockSubmit, mockUpdate, mockGetById }
   }
 
   /**
@@ -126,7 +140,8 @@ describe("submitApplication logic", () => {
     const { requireDualAuth } = await import("../auth/dual-auth")
     const { getSalesforceContactId } = await import("../auth/user-mapping")
     const { createSalesforceProxyClient, ProxyClientError } = await import("../salesforce/client")
-    const { enqueueFileAttachment, enqueueEmail } = await import("../jobs/queues")
+    const { enqueueFileAttachment } = await import("../jobs/queues")
+    const { sendApplicationConfirmation } = await import("../messages/application-confirmation")
 
     const user = await requireDualAuth()
     const contactId = await getSalesforceContactId(user.userId)
@@ -196,20 +211,24 @@ describe("submitApplication logic", () => {
       })
     }
 
-    // Enqueue confirmation email
+    // Send application confirmation via sf-dahlia-backend's messaging service
     const recipientEmail = data.primaryApplicant.email ?? user.email ?? ""
     if (recipientEmail) {
-      await enqueueEmail({
-        template: "application_confirmation",
-        recipient: recipientEmail,
-        locale: (data as any).applicationLanguage ?? "en",
-        data: {
-          applicationId: submittedApplication.id,
-          listingID: data.listingID,
-          lotteryNumber: submittedApplication.lotteryNumber,
-          firstName: data.primaryApplicant.firstName,
-          lastName: data.primaryApplicant.lastName,
+      const listing: any = await proxyClient.listings.getById(data.listingID)
+      await sendApplicationConfirmation({
+        email: recipientEmail,
+        listingId: data.listingID,
+        listingName: String(listing.Name ?? ""),
+        lotteryNumber: submittedApplication.lotteryNumber ?? "",
+        lotteryDate: String(listing.Lottery_Date ?? ""),
+        isRental: listing.RecordType?.Name === "Rental",
+        leasingAgent: {
+          name: String(listing.Leasing_Agent_Name ?? ""),
+          email: String(listing.Leasing_Agent_Email ?? ""),
+          phone: String(listing.Leasing_Agent_Phone ?? ""),
+          officeHours: String(listing.Office_Hours ?? ""),
         },
+        lang: (data as any).applicationLanguage ?? "en",
       })
     }
 
@@ -312,30 +331,33 @@ describe("submitApplication logic", () => {
     })
   })
 
-  describe("confirmation email enqueuing", () => {
-    it("enqueues confirmation email with correct data", async () => {
+  describe("confirmation email sending", () => {
+    it("sends application confirmation with correct data", async () => {
       await setupMocks()
-      const { enqueueEmail } = await import("../jobs/queues")
+      const { sendApplicationConfirmation } = await import("../messages/application-confirmation")
 
       await executeSubmitLogic(baseInput)
 
-      expect(enqueueEmail).toHaveBeenCalledWith({
-        template: "application_confirmation",
-        recipient: "jane@example.com",
-        locale: "en",
-        data: {
-          applicationId: "app_submitted_001",
-          listingID: "listing_abc",
-          lotteryNumber: "00123456",
-          firstName: "Jane",
-          lastName: "Doe",
+      expect(sendApplicationConfirmation).toHaveBeenCalledWith({
+        email: "jane@example.com",
+        listingId: "listing_abc",
+        listingName: "Test Listing",
+        lotteryNumber: "00123456",
+        lotteryDate: "2024-03-01",
+        isRental: true,
+        leasingAgent: {
+          name: "Pat Lee",
+          email: "pat@example.com",
+          phone: "415-555-0100",
+          officeHours: "Mon-Fri 9-5",
         },
+        lang: "en",
       })
     })
 
     it("uses user email as fallback when primaryApplicant email is null", async () => {
       await setupMocks()
-      const { enqueueEmail } = await import("../jobs/queues")
+      const { sendApplicationConfirmation } = await import("../messages/application-confirmation")
 
       const input = {
         ...baseInput,
@@ -344,9 +366,9 @@ describe("submitApplication logic", () => {
 
       await executeSubmitLogic(input)
 
-      expect(enqueueEmail).toHaveBeenCalledWith(
+      expect(sendApplicationConfirmation).toHaveBeenCalledWith(
         expect.objectContaining({
-          recipient: "applicant@example.com",
+          email: "applicant@example.com",
         })
       )
     })
@@ -404,7 +426,8 @@ describe("submitApplication logic", () => {
       const { ProxyClientError } = await import("../salesforce/client")
       const proxyError = new ProxyClientError("unavailable", 500, "")
       await setupMocks({ submitError: proxyError })
-      const { enqueueFileAttachment, enqueueEmail } = await import("../jobs/queues")
+      const { enqueueFileAttachment } = await import("../jobs/queues")
+      const { sendApplicationConfirmation } = await import("../messages/application-confirmation")
 
       await executeSubmitLogic({
         ...baseInput,
@@ -427,7 +450,7 @@ describe("submitApplication logic", () => {
       })
 
       expect(enqueueFileAttachment).not.toHaveBeenCalled()
-      expect(enqueueEmail).not.toHaveBeenCalled()
+      expect(sendApplicationConfirmation).not.toHaveBeenCalled()
     })
 
     it("re-throws non-proxy errors (e.g. 4xx validation errors)", async () => {

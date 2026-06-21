@@ -19,6 +19,9 @@ const envSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().default(""),
   // EasyPost address validation
   EASYPOST_API_KEY: z.string().default(""),
+  // sf-dahlia-backend messaging service (application confirmation, i2a/i2i emails)
+  DAHLIA_API_URL: z.string().default(""),
+  DAHLIA_API_KEY: z.string().default(""),
 })
 
 export type Env = z.infer<typeof envSchema>

@@ -413,21 +413,30 @@ export const submitApplication = createServerFn({ method: "POST" })
       })
     }
 
-    // Enqueue confirmation email job
-    const { enqueueEmail } = await import("../jobs/queues")
+    // Send application confirmation via sf-dahlia-backend's messaging service.
+    // Mirrors Rails' ShortFormController#send_submit_app_confirmation ->
+    // DahliaBackend::MessageService.send_application_confirmation, which hits
+    // the same backend endpoint directly (not via Rails).
     const recipientEmail = data.primaryApplicant.email ?? user.email ?? ""
     if (recipientEmail) {
-      await enqueueEmail({
-        template: "application_confirmation",
-        recipient: recipientEmail,
-        locale: (data as Record<string, unknown>).applicationLanguage as string ?? "en",
-        data: {
-          applicationId: submittedApplication.id,
-          listingID: data.listingID,
-          lotteryNumber: submittedApplication.lotteryNumber,
-          firstName: data.primaryApplicant.firstName,
-          lastName: data.primaryApplicant.lastName,
+      const listing = await proxyClient.listings.getById(data.listingID)
+      const { sendApplicationConfirmation } = await import(
+        "../messages/application-confirmation"
+      )
+      await sendApplicationConfirmation({
+        email: recipientEmail,
+        listingId: data.listingID,
+        listingName: String(listing.Name ?? ""),
+        lotteryNumber: submittedApplication.lotteryNumber ?? "",
+        lotteryDate: String(listing.Lottery_Date ?? ""),
+        isRental: (listing.RecordType as { Name?: string } | undefined)?.Name === "Rental",
+        leasingAgent: {
+          name: String(listing.Leasing_Agent_Name ?? ""),
+          email: String(listing.Leasing_Agent_Email ?? ""),
+          phone: String(listing.Leasing_Agent_Phone ?? ""),
+          officeHours: String(listing.Office_Hours ?? ""),
         },
+        lang: (data as Record<string, unknown>).applicationLanguage as string ?? "en",
       })
     }
 
