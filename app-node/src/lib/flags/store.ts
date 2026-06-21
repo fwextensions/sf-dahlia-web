@@ -26,6 +26,8 @@ export const FLAGS = {
   DIRECTORY_DALP: "temp.webapp.directory.dalp",
   /** Use the new account layout (drives /account redirects). */
   NEW_ACCOUNT_LAYOUT: "temp.webapp.newAccountLayout",
+  /** Use Clerk for auth; when off, fall back to devise_token_auth (Rails). */
+  CLERK_AUTH: "temp.webapp.auth.clerk",
 } as const
 
 export interface FlagsStore {

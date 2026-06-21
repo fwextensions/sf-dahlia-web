@@ -35,8 +35,15 @@ vi.mock("@tanstack/react-start/server", () => ({
   getRequest: vi.fn(),
 }))
 
+// Clerk auth is gated on the auth.clerk flag; mock it (default on) so the
+// existing Clerk-path assertions exercise the real Clerk branch.
+vi.mock("../flags/unleash", () => ({
+  isClerkAuthEnabled: vi.fn(),
+}))
+
 import { getAuth } from "@clerk/tanstack-react-start/server"
 import { getRequest } from "@tanstack/react-start/server"
+import { isClerkAuthEnabled } from "../flags/unleash"
 
 const RAILS_API_BASE_URL = "http://rails-proxy.internal"
 
@@ -45,6 +52,7 @@ const mswServer = setupServer()
 
 beforeEach(() => {
   vi.stubEnv("RAILS_API_BASE_URL", RAILS_API_BASE_URL)
+  vi.mocked(isClerkAuthEnabled).mockResolvedValue(true)
   mswServer.listen({ onUnhandledRequest: "error" })
 })
 
@@ -251,6 +259,35 @@ describe("requireDualAuth", () => {
       expect(err.search).toEqual({ redirect_url: "/account/settings" })
       expect(err.statusCode).toBe(302)
     }
+  })
+
+  it("skips Clerk and uses devise when the auth.clerk flag is off", async () => {
+    vi.mocked(isClerkAuthEnabled).mockResolvedValue(false)
+    const mockRequest = new Request("http://localhost/account", {
+      headers: {
+        "access-token": "devise-token",
+        uid: "user@example.com",
+        client: "client-id",
+      },
+    })
+    vi.mocked(getRequest).mockReturnValue(mockRequest as any)
+    // Even with a valid Clerk session, the flag-off path must not consult Clerk.
+    vi.mocked(getAuth).mockResolvedValue({
+      userId: "clerk_user_123",
+      sessionId: "sess_abc",
+    } as any)
+
+    mswServer.use(
+      http.get(`${RAILS_API_BASE_URL}/api/v1/auth/validate_token`, () => {
+        return HttpResponse.json({ success: true }, { status: 200 })
+      })
+    )
+
+    const result = await requireDualAuth()
+
+    expect(getAuth).not.toHaveBeenCalled()
+    expect(result.provider).toBe("devise")
+    expect(result.userId).toBe("devise:user@example.com")
   })
 
   it("prefers Clerk over devise when both are present", async () => {

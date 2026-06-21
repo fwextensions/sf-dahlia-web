@@ -22,6 +22,8 @@ import {
 import {
   initFlagsFromStore,
   serializeFlagsStore,
+  getFlag,
+  FLAGS,
   type FlagsStore,
 } from "../lib/flags/store"
 import { buildFlagsStore } from "../lib/flags/unleash"
@@ -48,8 +50,11 @@ const LAYER_ORDER = "@layer theme, base, seeds, components, utilities;"
 
 // Clerk requires a publishable key. When running locally without one configured,
 // skip the provider entirely so the app still renders for non-auth pages.
+// Whether Clerk is actually mounted is also gated on the auth.clerk flag
+// (computed at render time, see RootDocument) — when off, the bridged Rails auth
+// pages use devise_token_auth instead.
 const CLERK_PUBLISHABLE_KEY = process.env.CLERK_PUBLISHABLE_KEY ?? ""
-const clerkEnabled = CLERK_PUBLISHABLE_KEY.startsWith("pk_")
+const hasClerkKey = CLERK_PUBLISHABLE_KEY.startsWith("pk_")
 
 // Holds the per-request translation store between beforeLoad (which builds it on
 // the server) and the head render (which serializes it). Module-scoped, like the
@@ -154,6 +159,11 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
     typeof window === "undefined" ? pendingI18nStore : window.__DAHLIA_I18N__ ?? null
   const flagsStore =
     typeof window === "undefined" ? pendingFlagsStore : window.__DAHLIA_FLAGS__ ?? null
+
+  // Mount Clerk only when a key is configured AND the auth.clerk flag is on. The
+  // flag resolves identically on server (beforeLoad) and client (hydrate), so
+  // the provider is present/absent consistently — no hydration mismatch.
+  const clerkEnabled = hasClerkKey && getFlag(FLAGS.CLERK_AUTH)
 
   return (
     <html lang="en">

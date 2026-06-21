@@ -11,7 +11,7 @@
  * every SSR render. This module is server-only — never import it from code that
  * runs in the browser (the token must not ship to the client).
  */
-import type { FlagsStore } from "./store"
+import { FLAGS, type FlagsStore } from "./store"
 
 const CACHE_TTL_MS = 15_000
 
@@ -62,4 +62,14 @@ export async function buildFlagsStore(): Promise<FlagsStore> {
     cache = { at: now, store }
     return store
   }
+}
+
+/**
+ * Whether Clerk auth is enabled (server-side). Used by the dual-auth resolver to
+ * decide whether to attempt Clerk before falling back to devise_token_auth.
+ * Off when the flag is disabled or evaluation failed — i.e. default to devise.
+ */
+export async function isClerkAuthEnabled(): Promise<boolean> {
+  const flags = await buildFlagsStore()
+  return !flags.error && flags.enabled.includes(FLAGS.CLERK_AUTH)
 }

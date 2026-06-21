@@ -15,6 +15,7 @@
 import { getAuth } from "@clerk/tanstack-react-start/server"
 import { redirect } from "@tanstack/react-router"
 import { getRequest } from "@tanstack/react-start/server"
+import { isClerkAuthEnabled } from "../flags/unleash"
 
 export interface DualAuthUser {
   userId: string
@@ -78,9 +79,15 @@ export async function validateDeviseToken(
 
 /**
  * Attempt Clerk authentication on the given request.
- * Returns a DualAuthUser if a valid Clerk session exists, or null.
+ * Returns a DualAuthUser if a valid Clerk session exists, or null. Skips Clerk
+ * entirely (returns null) when the auth.clerk flag is off, so the caller falls
+ * back to devise_token_auth — Clerk is not yet enabled in production.
  */
 async function tryClerkAuth(request: Request): Promise<DualAuthUser | null> {
+  if (!(await isClerkAuthEnabled())) {
+    return null
+  }
+
   const auth = await getAuth(request)
 
   if (auth.userId) {

@@ -30,8 +30,15 @@ vi.mock("@tanstack/react-start/server", () => ({
   getRequest: vi.fn(),
 }))
 
+// Clerk auth is gated on the auth.clerk flag; mock it on so the dual-auth
+// resolver exercises the Clerk branch in these tests.
+vi.mock("../flags/unleash", () => ({
+  isClerkAuthEnabled: vi.fn(),
+}))
+
 import { getAuth } from "@clerk/tanstack-react-start/server"
 import { getRequest } from "@tanstack/react-start/server"
+import { isClerkAuthEnabled } from "../flags/unleash"
 
 const RAILS_API_BASE_URL = "http://rails-proxy.internal"
 
@@ -39,6 +46,7 @@ const mswServer = setupServer()
 
 beforeEach(() => {
   vi.stubEnv("RAILS_API_BASE_URL", RAILS_API_BASE_URL)
+  vi.mocked(isClerkAuthEnabled).mockResolvedValue(true)
   mswServer.listen({ onUnhandledRequest: "error" })
 })
 
