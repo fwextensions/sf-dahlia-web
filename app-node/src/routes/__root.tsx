@@ -160,6 +160,13 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
             children
           )}
         </NavigationProvider>
+        {/* Portal target for the vendored @uic Overlay (gallery modal, etc.),
+            which portals into `#__next` (provided by the Rails app's
+            application-react.html.slim). app-node hydrates `document` directly,
+            so without this the modal renders into a detached node — the gallery
+            never opens and react-remove-scroll leaves the body scroll-locked
+            (data-scroll-locked). */}
+        <div id="__next" />
         <Scripts />
       </body>
     </html>
