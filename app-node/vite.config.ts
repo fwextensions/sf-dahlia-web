@@ -136,6 +136,16 @@ export default defineConfig({
     // so the default import gets ESM interop.
     include: ["react-dom/server"],
   },
+  ssr: {
+    // react-hook-form lives in the repo-root node_modules (it's a Rails-tree dep).
+    // If externalized for SSR it resolves its own React copy from root
+    // node_modules, while app-node's react-dom-server uses app-node's React —
+    // two React copies → "Cannot read properties of null (reading 'useRef')"
+    // invalid-hook-call crash. Bundling it through Vite's graph applies
+    // resolve.dedupe so it shares the single React. (Used by CounselorFilter on
+    // the now-native housing-counselors page; previously only client-rendered.)
+    noExternal: ["react-hook-form"],
+  },
   plugins: [
     // Process Tailwind via the Vite plugin (not @tailwindcss/postcss). It
     // resolves @apply against the full theme even when the dev server transforms
