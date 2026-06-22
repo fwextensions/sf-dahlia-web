@@ -28,33 +28,16 @@ import Markdown from "markdown-to-jsx"
 import { getAssetPath } from "../lib/assetPaths"
 import {
   getCurrentLanguage,
-  getPathWithoutLanguagePrefix,
   getSfGovUrl,
   LANGUAGE_CONFIGS,
   renderInlineMarkup,
-  type LanguagePrefix,
 } from "../../../app/javascript/util/languageUtil"
-import { cleanPath } from "../../../app/javascript/util/urlUtil"
+import { getLocalizedPath } from "../lib/i18n/localized-path"
 
 // Header/footer chrome overrides (feedback-link, header border, dropdown tweaks).
 // The Bloom @uic SiteHeader/SiteFooter import their own base CSS; this layers the
 // Dahlia-specific overrides on top, the same file Layout.tsx uses for bridged pages.
 import "../../../app/javascript/layouts/Layout.css"
-
-// Inlined copy of routeUtil.getLocalizedPath. We can't import routeUtil here:
-// its module top-level builds SignInRedirectUrls by CALLING localizedPathGetter()
-// (default arg reads window.location.pathname), which throws during SSR module
-// eval. This helper only uses SSR-safe languageUtil/urlUtil pieces.
-const getLocalizedPath = (
-  newPath: string,
-  language: LanguagePrefix,
-  queryString?: string
-): string => {
-  const pathWithoutLang = getPathWithoutLanguagePrefix(newPath)
-  const config = LANGUAGE_CONFIGS[language]
-  const cleaned = cleanPath(config.isDefault ? pathWithoutLang : `${config.prefix}${pathWithoutLang}`)
-  return `${cleaned}${queryString || ""}`
-}
 
 const getDisclaimerPath = (pathname: string) =>
   getLocalizedPath("/disclaimer", getCurrentLanguage(pathname))
@@ -80,12 +63,17 @@ const getLanguageItems = (pathname: string): LangItem[] =>
     },
   }))
 
-const getMenuLinks = () => [
-  { title: t("nav.rent"), href: "/listings/for-rent" },
-  { title: t("nav.buy"), href: "/listings/for-sale" },
-  { title: t("nav.getAssistance"), href: "/get-assistance" },
-  { title: t("nav.signIn"), href: "/sign-in" },
-]
+// Localize the nav hrefs to the current language so navigating from a localized
+// page (e.g. /es) stays in that language.
+const getMenuLinks = (pathname: string) => {
+  const lang = getCurrentLanguage(pathname)
+  return [
+    { title: t("nav.rent"), href: getLocalizedPath("/listings/for-rent", lang) },
+    { title: t("nav.buy"), href: getLocalizedPath("/listings/for-sale", lang) },
+    { title: t("nav.getAssistance"), href: getLocalizedPath("/get-assistance", lang) },
+    { title: t("nav.signIn"), href: getLocalizedPath("/sign-in", lang) },
+  ]
+}
 
 export function AppShell({ pathname, children }: AppShellProps) {
   const feedbackBanner = (
@@ -114,7 +102,7 @@ export function AppShell({ pathname, children }: AppShellProps) {
       <div className="site-content">
         {topAlert}
         <SiteHeader
-          homeURL={"/"}
+          homeURL={getLocalizedPath("/", getCurrentLanguage(pathname))}
           dropdownItemClassName={"text-2xs"}
           languageNavLabel={t("languages.choose")}
           languages={getLanguageItems(pathname)}
@@ -127,7 +115,7 @@ export function AppShell({ pathname, children }: AppShellProps) {
           mobileText={true}
           logoWidth={"medium"}
           logoClass="translate"
-          menuLinks={getMenuLinks()}
+          menuLinks={getMenuLinks(pathname)}
           strings={{
             skipToMainContent: t("t.skipToMainContent"),
             logoAriaLable: t("t.dahliaSanFranciscoHousingPortal"),

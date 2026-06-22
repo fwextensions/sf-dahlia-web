@@ -1,18 +1,13 @@
 /**
- * Bridges to the original Rails react-on-rails page component in
- * app/javascript. The page is mounted client-side after translations load
- * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
+ * Language-prefixed home page: /:lang
+ *
+ * Native SSR — same HomePage component as the unprefixed route. Locale comes from
+ * the root route's i18n store (built from getCurrentLanguage(pathname)).
  */
 import { createFileRoute } from "@tanstack/react-router"
-import { RailsPage } from "../../components/RailsPage"
-
-const load = () => import("../../../../app/javascript/pages/index")
+import { HomePage } from "~/pages/HomePage"
 
 export const Route = createFileRoute("/$lang/")({
-  ssr: false,
-  component: PageRoute,
+  component: HomePage,
+  staticData: { nativeShell: true },
 })
-
-function PageRoute() {
-  return <RailsPage load={load} />
-}

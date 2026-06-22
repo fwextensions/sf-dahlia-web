@@ -1,63 +1,49 @@
 /**
- * HomePage component for DAHLIA San Francisco Housing Portal.
- *
- * Renders the welcome hero section with links to rental and sale listings.
- * Client-side data fetching (e.g., featured listings) happens after hydration
- * using the RAILS_API_BASE_URL.
+ * Native home page (SSR). Ports app/javascript/pages/index.tsx without Layout /
+ * withAppSetup — the native route supplies the AppShell chrome and the root
+ * route supplies translations. Directory links are localized so navigating from
+ * a localized home keeps the language.
  */
-import { createTranslatorSync } from "../i18n"
-import type { TranslationDictionary } from "../i18n/types"
+import { t, SiteAlert, Hero, ActionBlock, Heading } from "@uic"
+import { getLocalizedPath } from "../lib/i18n/localized-path"
+import heroBg from "../../../app/assets/images/bg@1200.jpg"
 
-interface HomePageProps {
-  translations: TranslationDictionary | null
-  fallbackTranslations: TranslationDictionary | null
-  locale: string
-}
+// Mailing-list signup URL (ConfigContext.listingsAlertUrl in the Rails app).
+const LISTINGS_ALERT_URL = "https://confirmsubscription.com/h/y/C3BAFCD742D47910"
 
-export function HomePage({ translations, fallbackTranslations, locale }: HomePageProps) {
-  const t = createTranslatorSync(translations, fallbackTranslations)
-
-  const rentalPath = locale === "en" ? "/listings/for-rent" : `/${locale}/listings/for-rent`
-  const salePath = locale === "en" ? "/listings/for-sale" : `/${locale}/listings/for-sale`
+export function HomePage() {
+  const alertClasses = "grow mt-6 max-w-6xl w-full"
 
   return (
-    <main>
-      <section
-        className="relative bg-cover bg-center py-24 px-6 text-center text-white"
-        aria-label={t("welcome.title")}
-      >
-        <div className="absolute inset-0 bg-gray-900 opacity-50" />
-        <div className="relative z-10 max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold font-alt-serif mb-6">
-            {t("welcome.title")}
-          </h1>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+    <>
+      <div className="flex absolute w-full flex-col items-center">
+        <SiteAlert type="alert" className={alertClasses} />
+        <SiteAlert type="success" className={alertClasses} timeout={30_000} />
+      </div>
+      <Hero
+        title={t("welcome.title")}
+        backgroundImage={heroBg}
+        buttonLink={getLocalizedPath("/listings/for-rent")}
+        buttonTitle={t("welcome.seeRentalListings")}
+        secondaryButtonLink={getLocalizedPath("/listings/for-sale")}
+        secondaryButtonTitle={t("welcome.seeSaleListings")}
+      />
+      <div className="homepage-extra mt-2">
+        <ActionBlock
+          header={<Heading priority={2}>{t("welcome.newListingEmailAlert")}</Heading>}
+          actions={[
             <a
-              href={rentalPath}
-              className="inline-block px-8 py-3 bg-blue-700 text-white font-semibold rounded hover:bg-blue-800 transition"
+              className="button"
+              key="action-1"
+              href={LISTINGS_ALERT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              {t("welcome.see_rental_listings")}
-            </a>
-            <a
-              href={salePath}
-              className="inline-block px-8 py-3 bg-white text-blue-700 font-semibold rounded hover:bg-gray-100 transition"
-            >
-              {t("welcome.see_sale_listings")}
-            </a>
-          </div>
-        </div>
-      </section>
-      <section className="max-w-4xl mx-auto py-12 px-6 text-center">
-        <h2 className="text-2xl font-bold mb-4">{t("welcome.new_listing_email_alert")}</h2>
-        <a
-          href="https://confirmsubscription.com/h/y/EA519CC9A3D0609E"
-          className="inline-block px-6 py-3 bg-blue-700 text-white font-semibold rounded hover:bg-blue-800 transition"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {t("welcome.sign_up_today")}
-        </a>
-      </section>
-    </main>
+              {t("welcome.signUpToday")}
+            </a>,
+          ]}
+        />
+      </div>
+    </>
   )
 }
