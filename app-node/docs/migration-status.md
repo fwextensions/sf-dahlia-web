@@ -20,15 +20,15 @@ app-node serves every page, but in two modes:
   original react-on-rails component from `app/javascript` (`ssr: false`). A
   parity shim, being retired one route at a time.
 
-So far **the listing surface is native**; account, auth, home, and content pages
-still bridge. **37 route files import the bridge; 6 page routes are native.**
+So far the **listing surface, home page, and all content/get-assistance pages
+are native** — at both the unprefixed and `/$lang` paths (es/zh/tl get SSR too).
+Account and auth pages still bridge.
 
-> ⚠️ **Language nuance:** native routes live at the *unprefixed* paths
-> (`/listings/...`), which the **default language (English)** uses. The
-> `/$lang/...` variants (`/es`, `/zh`, `/tl`) for the *same* pages are still the
-> bridge. So today a migrated page is native **only in English** — localized
-> visitors get the bridge. Consolidating the `$lang` duplicates onto the native
-> components is a tracked next step.
+> **Localization:** native pages now render at both the unprefixed (English) and
+> `/$lang` paths via shared route configs; the root `beforeLoad` builds the i18n
+> store from the path, so the same component SSRs in the right language. `<html
+> lang>` reflects the request language. Internal links in native pages/chrome use
+> `getLocalizedPath` so navigating from a localized page keeps the language.
 
 ---
 
@@ -42,23 +42,27 @@ still bridge. **37 route files import the bridge; 6 page routes are native.**
 | `/listings/for-sale` | `pages/listings/SaleDirectory.tsx` | Ownership directory; DALP header gated on flag. |
 | `/listings/for-rent` | `pages/listings/RentDirectory.tsx` | Rental directory. |
 | `/listings/$id/apply/intro` | `pages/apply/ListingApplyForm.tsx` | Form-engine apply entry. |
-| `/listings/$id/next-steps` | route + `getListingDetail` | Post-lottery "next steps". |
-| `/listings/$id/next-steps/documents` | route | Document checklist for next steps. |
+| `/listings/$id/next-steps` | route + `getListingDetail` | Post-lottery "next steps" (skeleton; WIP). |
+| `/listings/$id/next-steps/documents` | route | Document checklist for next steps (stub; WIP). |
+| `/` (home) | `pages/HomePage.tsx` | Hero + mailing-list signup; localized directory links. |
+| `/disclaimer` | `pages/assistance/Disclaimer.tsx` | Static content. |
+| `/privacy` | `pages/assistance/Privacy.tsx` | Static content. |
+| `/get-assistance` | `pages/assistance/GetAssistance.tsx` | Action blocks + contact sidebar. |
+| `/additional-resources` | `pages/assistance/AdditionalResources.tsx` | InfoCard grid from static JSON. |
+| `/document-checklist` | `pages/assistance/DocumentChecklist.tsx` | Preference doc accordions. |
+| `/housing-counselors` | `pages/assistance/HousingCounselors.tsx` | Counselor list + client-side filter. |
 
-Native routes opt into the SSR-safe site chrome with `staticData: { nativeShell: true }`
+All of the above also exist at `/$lang/...` rendering the same component. Native
+routes opt into the SSR-safe site chrome with `staticData: { nativeShell: true }`
 (see `components/AppShell.tsx`); bridged routes self-wrap via Rails `Layout.tsx`.
 
 ### Bridge (`RailsPage`, `ssr: false`)
 
-- **Home:** `/`
 - **Auth:** `/sign-in`, `/create-account`, `/forgot-password`, `/reset-password`
 - **Account:** `/account`, `/account/applications`, `/account/settings`,
   `/my-account`, `/my-applications`
-- **Content/static:** `/disclaimer`, `/privacy`, `/get-assistance`,
-  `/housing-counselors`, `/additional-resources`, `/document-checklist`
 - **Apply (legacy entry):** `/listings/$id/how-to-apply`
-- **All `/$lang/...` variants** of every page above **and** of the native pages
-  (the localized listing detail/directories still bridge).
+- The `/$lang/...` variants of the above.
 
 ---
 
@@ -88,21 +92,17 @@ Native routes opt into the SSR-safe site chrome with `staticData: { nativeShell:
 
 ## What to tackle next (prioritized)
 
-1. **Consolidate the `$lang` duplicates onto the native pages.** Highest-leverage:
-   the native listing detail/directories only serve English today. Make the
-   localized routes render the same native components (drive locale from the route
-   param, drop the bridge variants) so non-English users get SSR too.
-2. **Home page (`/`) native.** High-traffic, mostly static + a listings teaser;
-   good SSR/SEO win. Loader can reuse `getListings`.
-3. **Static content pages native** (disclaimer, privacy, get-assistance,
-   housing-counselors, additional-resources, document-checklist). Pure
-   translations + static JSON; cheap, and removes bridge routes quickly.
-4. **Auth pages native** (sign-in, create-account, forgot/reset-password) — needs
+_Done: localized listing routes, native home page, and native content pages
+(steps 1–3 of the earlier list)._
+
+1. **Auth pages native** (sign-in, create-account, forgot/reset-password) — needs
    the auth provider story settled (Clerk flag vs. devise). Wire to dual-auth.
-5. **Account suite native** (account, settings, applications, my-account,
+2. **Account suite native** (account, settings, applications, my-account,
    my-applications) — client-rendered behind SSR'd chrome is acceptable; uses
    `requireDualAuth` server fns that already exist.
-6. **Retire `RailsPage`** once no route imports it, then delete the bridge and the
+3. **Finish the apply / next-steps native flow** — the `/listings/$id/apply/intro`
+   and `/next-steps*` routes exist but are skeletons/stubs; flesh them out.
+4. **Retire `RailsPage`** once no route imports it, then delete the bridge and the
    `app/javascript` page entry points (per retirement-plan Phase 2/3).
 
 See `rails-retirement-plan.md` for the API-decoupling (Phase 3) and any remaining
@@ -122,3 +122,9 @@ component work (Phase 4) that runs in parallel.
   data has it off, so it won't show locally even though dahlia-full does.
 - **Dev vs. built differ** for CSS — diagnose layout on the BUILT site
   (`npm start`); the bridge injects CSS at runtime in dev.
+- **document-checklist** dropped the URL-hash auto-expand (Rails read
+  `window.location` at render); the section `id` anchors remain so browser scroll
+  to a linked section still works.
+- **SSR'ing a repo-root dep** (e.g. `react-hook-form`) can hit a dual-React
+  invalid-hook crash unless it's in `ssr.noExternal` (vite.config) so Vite
+  dedupes React through its graph.
