@@ -1,18 +1,21 @@
 /**
- * Bridges to the original Rails react-on-rails page component in
- * app/javascript. The page is mounted client-side after translations load
- * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
+ * Language-prefixed for-rent directory: /:lang/listings/for-rent
+ *
+ * Native SSR (no RailsPage bridge) — same RentDirectory component + loader as the
+ * unprefixed route, via lib/listings/route-config. Locale comes from the root
+ * route's i18n store.
  */
 import { createFileRoute } from "@tanstack/react-router"
-import { RailsPage } from "../../components/RailsPage"
-
-const load = () => import("../../../../app/javascript/pages/listings/for-rent")
+import { RentDirectory } from "~/pages/listings/RentDirectory"
+import { loadDirectory } from "../../lib/listings/route-config"
 
 export const Route = createFileRoute("/$lang/listings/for-rent")({
-  ssr: false,
-  component: PageRoute,
+  loader: () => loadDirectory("rental"),
+  component: RentDirectoryRoute,
+  staticData: { nativeShell: true },
 })
 
-function PageRoute() {
-  return <RailsPage load={load} />
+function RentDirectoryRoute() {
+  const { listings } = Route.useLoaderData()
+  return <RentDirectory listings={listings} />
 }

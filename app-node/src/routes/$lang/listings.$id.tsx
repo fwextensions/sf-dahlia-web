@@ -1,18 +1,41 @@
 /**
- * Bridges to the original Rails react-on-rails page component in
- * app/javascript. The page is mounted client-side after translations load
- * (see src/components/RailsPage.tsx), matching how the Rails app renders it.
+ * Language-prefixed listing detail: /:lang/listings/:id
+ *
+ * Native SSR (no RailsPage bridge) — renders the same ListingDetail component as
+ * the unprefixed /listings/$id route, sharing its loader + search schema via
+ * lib/listings/route-config. Locale (es/zh/tl) comes from the root route's i18n
+ * store, which is built from getCurrentLanguage(pathname) in beforeLoad.
  */
 import { createFileRoute } from "@tanstack/react-router"
-import { RailsPage } from "../../components/RailsPage"
-
-const load = () => import("../../../../app/javascript/pages/listings/listing-detail")
+import { ListingDetail } from "~/pages/listings/ListingDetail"
+import { ErrorPage } from "../../components/ErrorPage"
+import { listingDetailSearchSchema, loadListingDetail } from "../../lib/listings/route-config"
 
 export const Route = createFileRoute("/$lang/listings/$id")({
-  ssr: false,
-  component: PageRoute,
+  validateSearch: listingDetailSearchSchema,
+  loaderDeps: ({ search }) => ({ force: search.force }),
+  loader: ({ params, deps }) => loadListingDetail(params.id, deps.force),
+  component: ListingDetailRoute,
+  errorComponent: ListingDetailError,
+  staticData: { nativeShell: true },
 })
 
-function PageRoute() {
-  return <RailsPage load={load} />
+function ListingDetailRoute() {
+  const { listing, pricingPromise, preferencesPromise } = Route.useLoaderData()
+  return (
+    <ListingDetail
+      listing={listing}
+      pricingPromise={pricingPromise}
+      preferencesPromise={preferencesPromise}
+    />
+  )
+}
+
+function ListingDetailError() {
+  return (
+    <ErrorPage
+      title="Unable to Load Listing"
+      message="We're having trouble loading this listing. Please try again in a moment."
+    />
+  )
 }

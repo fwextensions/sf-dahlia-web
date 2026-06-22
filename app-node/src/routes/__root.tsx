@@ -165,8 +165,13 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   // the provider is present/absent consistently — no hydration mismatch.
   const clerkEnabled = hasClerkKey && getFlag(FLAGS.CLERK_AUTH)
 
+  // Reflect the request language on <html> for a11y/SEO. The i18n store carries
+  // the resolved language (built from the path in beforeLoad); same value on
+  // server and client, so no hydration mismatch.
+  const htmlLang = i18nStore?.lng ?? "en"
+
   return (
-    <html lang="en">
+    <html lang={htmlLang}>
       <head>
         {/* Pin cascade-layer order before any stylesheet link is parsed. */}
         <style dangerouslySetInnerHTML={{ __html: LAYER_ORDER }} />
