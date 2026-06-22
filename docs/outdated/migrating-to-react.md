@@ -1,3 +1,7 @@
+<!-- ARCHIVED 2026-06-21 — describes the legacy Angular→react-on-rails workflow
+(`?react=true`, react_application.tsx) that predates the TanStack Start migration.
+Kept for history. Current direction: app-node/docs/migration-status.md. -->
+
 # Migrating an angular page to react
 
 ## Creating the new react page

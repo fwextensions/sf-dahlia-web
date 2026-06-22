@@ -4,6 +4,10 @@
 **Branch context:** `jdunning/poc/tanstack-migration` (original) →
 `jdunning/poc/tanstack-on-i18n` (current; rebased onto the i18n/vendoring branch)
 
+> **This doc is the roadmap.** For the current page-by-page native-vs-bridge
+> status and the prioritized next steps, see
+> [`migration-status.md`](./migration-status.md).
+
 ---
 
 ## Decision record — 2026-06-19 update
@@ -26,7 +30,17 @@ the reference roadmap (parts of it are now done — noted inline where relevant)
 - **SSR translations (SSR-plan prereqs 1–2, done).** Per-request i18next instance;
   the server serializes a merged translation store into the HTML and the client
   hydrates synchronously (see `docs/tanstack-ssr-plan.md`).
-- **First native SSR route.** `/listings/for-rent` renders natively (no bridge).
+- **Native SSR listing surface (Phase 2 step 3, partially done).** The unprefixed
+  `/listings/for-rent`, `/listings/for-sale`, `/listings/$id` (full parity,
+  including the FCFS sales flow), and `/listings/$id/apply/intro` +
+  `/next-steps` routes render natively (no bridge). The `/$lang` (es/zh/tl)
+  variants of these still bridge — consolidating them is the top next step.
+- **Native SSR-safe app shell.** `components/AppShell.tsx` (header/footer) gated on
+  `staticData.nativeShell`, so native routes get chrome without double-wrapping.
+- **Server-side feature flags (Phase 2 step 2, done).** Unleash evaluated on the
+  server and serialized to the client (i18n-store pattern); native pages and the
+  account-layout route constraint gate on real flags, and Clerk auth is
+  flag-gated. `lib/flags/{unleash,store}.ts`.
 
 ### Decision 1 — Commit to the native rewrite; retire the `RailsPage` bridge
 

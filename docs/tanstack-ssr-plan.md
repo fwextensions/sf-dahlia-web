@@ -1,10 +1,16 @@
 # TanStack Start SSR plan (app-node)
 
-Status: planning + first spike. Branch: `jdunning/poc/tanstack-on-i18n`.
+Status: mechanism implemented; rollout in progress. Branch: `jdunning/poc/tanstack-on-i18n`.
 
-## Where we are
+> **For the current native-vs-bridge route status, see
+> [`app-node/docs/migration-status.md`](../app-node/docs/migration-status.md).**
+> This doc covers the SSR *mechanism*; the "Where we are" section below is the
+> original framing and is partly superseded — the listing surface (detail + both
+> directories + apply/next-steps) now renders natively via SSR.
 
-Every page-content route in app-node is currently `ssr: false`. They render via
+## Where we are (original framing — partly superseded)
+
+When this was written, every page-content route was `ssr: false`, rendering via
 the `RailsPage` bridge (`app-node/src/components/RailsPage.tsx`), which mounts the
 *original* react-on-rails components from `app/javascript` **client-side only**:
 it renders `null` during SSR, then on the client loads translations + the page
@@ -16,8 +22,9 @@ Three things needed for real SSR already exist:
 1. **Native, SSR-ready page components** — `src/pages/listings/{RentDirectory,
    SaleDirectory,ListingDetail}.tsx` (+ `GenericDirectory`, `ListingsGroup`,
    `EmptyListingsView`). They take data via props (e.g. `RentDirectory({ listings })`)
-   and render synchronously. Built but **not yet wired to routes** — the listings
-   routes still bridge to Rails.
+   and render synchronously. **Now wired natively** at the unprefixed routes
+   (`/listings/for-rent`, `/listings/for-sale`, `/listings/$id`); the `/$lang`
+   variants still bridge.
 2. **Server data fetchers** — `src/lib/listings/server-fns.ts` exposes
    `createServerFn` handlers (`getListings`, `getListingDetail`, units,
    preferences, lottery, AMI…) that hit Salesforce through a proxy + Redis cache.
