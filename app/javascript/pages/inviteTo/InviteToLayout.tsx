@@ -111,36 +111,43 @@ const InviteToSidebarBlock = ({
   )
 }
 
-interface InviteToLayoutProps {
+interface InviteToLayoutInnerProps {
   listing: RailsSaleListing
   type: INVITE_TO_X
   title?: string
   subtitle?: string
   children: React.ReactNode
-  getAssetPath: (path: string) => string
+  /** Resolved hero background image URL (Rails: getAssetPath; app-node: Vite import). */
+  backgroundImage: string
   sidebarText: string
   headerText: string
   deadline: string
 }
 
-const InviteToLayout = ({
+/**
+ * Layout body for the invite-to pages WITHOUT the site chrome (`<Layout>`). The
+ * Rails default export below wraps this in `<Layout>`; the native app-node route
+ * renders it directly under AppShell chrome. Takes a resolved `backgroundImage`
+ * so it has no dependency on ConfigContext.getAssetPath (absent under app-node).
+ */
+export const InviteToLayoutInner = ({
   listing,
   type,
   title,
   subtitle,
   children,
-  getAssetPath,
+  backgroundImage,
   sidebarText,
   headerText,
   deadline,
-}: InviteToLayoutProps) => {
+}: InviteToLayoutInnerProps) => {
   return (
-    <Layout>
+    <>
       <PageHeader
         title={title || listing?.Building_Name_for_Process || listing?.Name}
         subtitle={subtitle}
         inverse
-        backgroundImage={getAssetPath("bg@1200.jpg")}
+        backgroundImage={backgroundImage}
       />
       <div className={styles.submitYourInfo}>
         <div className={styles.submitYourInfoPage}>
@@ -160,6 +167,18 @@ const InviteToLayout = ({
           </Desktop>
         </div>
       </div>
+    </>
+  )
+}
+
+interface InviteToLayoutProps extends Omit<InviteToLayoutInnerProps, "backgroundImage"> {
+  getAssetPath: (path: string) => string
+}
+
+const InviteToLayout = ({ getAssetPath, ...rest }: InviteToLayoutProps) => {
+  return (
+    <Layout>
+      <InviteToLayoutInner backgroundImage={getAssetPath("bg@1200.jpg")} {...rest} />
     </Layout>
   )
 }

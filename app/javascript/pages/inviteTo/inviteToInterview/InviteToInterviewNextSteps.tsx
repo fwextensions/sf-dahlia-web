@@ -7,7 +7,8 @@ import { isDeadlinePassed } from "../../../util/listingUtil"
 import { getCurrentLanguage, getTranslatedString, renderMarkup } from "../../../util/languageUtil"
 import styles from "../invite-to.module.css"
 import { ConfigContext } from "../../../lib/ConfigContext"
-import InviteToLayout from "../InviteToLayout"
+import Layout from "../../../layouts/Layout"
+import { InviteToLayoutInner } from "../InviteToLayout"
 import InviteToGetHelp from "../InviteToGetHelp"
 import InviteToLeasingAgentInfo from "../InviteToLeasingAgentInfo"
 import { INVITE_TO_X } from "../../../modules/constants"
@@ -114,19 +115,24 @@ const WhatToExpectAfter = () => {
   )
 }
 
-const InviteToInterviewNextSteps = ({
+/**
+ * Chrome-free body of the I2I next-steps page (no `<Layout>`, no ConfigContext)
+ * so the native app-node route can render it under AppShell. Takes a resolved
+ * `backgroundImage` for the hero.
+ */
+export const InviteToInterviewNextStepsContent = ({
   listing,
   deadline,
   url,
-}: InviteToInterviewNextStepsProps) => {
-  const { getAssetPath } = React.useContext(ConfigContext)
+  backgroundImage,
+}: InviteToInterviewNextStepsProps & { backgroundImage: string }) => {
   return (
     <LoadingOverlay isLoading={!listing}>
-      <InviteToLayout
+      <InviteToLayoutInner
         listing={listing}
         type={INVITE_TO_X.INTERVIEW}
         subtitle={t("inviteToInterviewPage.submitYourInfo.subtitle")}
-        getAssetPath={getAssetPath}
+        backgroundImage={backgroundImage}
         headerText="inviteToInterviewPage.submitYourInfo.seeApartment"
         sidebarText="inviteToInterviewPage.submitYourInfo.sidebar"
         deadline={deadline}
@@ -156,8 +162,20 @@ const InviteToInterviewNextSteps = ({
             {t("inviteToInterviewPage.submitYourInfo.printThisPage")}
           </Button>
         </div>
-      </InviteToLayout>
+      </InviteToLayoutInner>
     </LoadingOverlay>
+  )
+}
+
+const InviteToInterviewNextSteps = (props: InviteToInterviewNextStepsProps) => {
+  const { getAssetPath } = React.useContext(ConfigContext)
+  return (
+    <Layout>
+      <InviteToInterviewNextStepsContent
+        {...props}
+        backgroundImage={getAssetPath("bg@1200.jpg")}
+      />
+    </Layout>
   )
 }
 

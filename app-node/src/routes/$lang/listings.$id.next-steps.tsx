@@ -1,61 +1,39 @@
 /**
- * Language-prefixed InviteToPage (Next Steps) route: /:lang/listings/:id/next-steps
- * Server function fetches listing data via Rails proxy with caching and retry.
- * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7
+ * Language-prefixed native next-steps route: /:lang/listings/:id/next-steps.
+ * Same loader + component as the unprefixed variant (see lib/inviteTo/route-config).
  */
-
 import { createFileRoute } from "@tanstack/react-router"
-import { getListingDetail } from "../../lib/listings/server-fns"
+import { NextSteps } from "../../pages/inviteTo/NextSteps"
 import { ErrorPage } from "../../components/ErrorPage"
+import {
+  inviteToSearchSchema,
+  inviteToLoaderDeps,
+  loadNextSteps,
+} from "../../lib/inviteTo/route-config"
 
 export const Route = createFileRoute("/$lang/listings/$id/next-steps")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    force: search.force === "true" || search.force === true,
-  }),
-  loaderDeps: ({ search }) => ({ force: search.force }),
-  loader: async ({ params, deps }) => {
-    const listing = await getListingDetail({
-      data: { id: params.id, force: deps.force },
-    })
-    return { listing }
-  },
-  component: InviteToPage,
-  errorComponent: InviteToPageError,
+  validateSearch: inviteToSearchSchema,
+  loaderDeps: inviteToLoaderDeps,
+  loader: ({ params, deps }) => loadNextSteps(params.id, deps),
+  component: NextStepsRoute,
+  errorComponent: NextStepsError,
+  staticData: { nativeShell: true },
 })
 
-function InviteToPage() {
-  const { listing } = Route.useLoaderData()
-  const { id } = Route.useParams()
-
+function NextStepsRoute() {
+  const { listing, uploadUrl, schedulingUrl } = Route.useLoaderData()
+  const search = Route.useSearch()
   return (
-    <main role="main" aria-labelledby="next-steps-title">
-      <h1 id="next-steps-title">Next Steps: {listing.Name}</h1>
-
-      <section aria-labelledby="listing-info-heading">
-        <h2 id="listing-info-heading">Listing Information</h2>
-        <address>
-          {listing.Building_Street_Address}
-          <br />
-          {listing.Building_City}, {listing.Building_State} {listing.Building_Zip_Code}
-        </address>
-      </section>
-
-      {listing.Lottery_Status && (
-        <p>
-          <strong>Lottery Status:</strong> {listing.Lottery_Status}
-        </p>
-      )}
-
-      <nav aria-label="Next steps navigation">
-        <a href={`/listings/${id}/next-steps/documents`}>
-          View Required Documents
-        </a>
-      </nav>
-    </main>
+    <NextSteps
+      listing={listing}
+      uploadUrl={uploadUrl}
+      schedulingUrl={schedulingUrl}
+      search={search}
+    />
   )
 }
 
-function InviteToPageError() {
+function NextStepsError() {
   return (
     <ErrorPage
       title="Unable to Load Next Steps"

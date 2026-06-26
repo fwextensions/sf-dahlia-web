@@ -293,18 +293,25 @@ const InviteToApplyDocumentsSidebar = ({ listing }: { listing: RailsSaleListing 
   )
 }
 
-const InviteToApplyDocuments = ({ listing }: InviteToApplyDocumentsProps) => {
-  const { getAssetPath } = React.useContext(ConfigContext)
+/**
+ * Chrome-free body of the I2A documents page (no `<Layout>`, no ConfigContext)
+ * so the native app-node route can render it under AppShell. Takes a resolved
+ * `backgroundImage` for the hero.
+ */
+export const InviteToApplyDocumentsContent = ({
+  listing,
+  backgroundImage,
+}: InviteToApplyDocumentsProps & { backgroundImage: string }) => {
   const submitYourInfoLink = getBMRApplicationUrl()
 
   return (
-    <Layout>
+    <>
       <PageHeader
         title={t("inviteToApplyPage.documents.title", {
           listingName: listing?.Building_Name_for_Process,
         })}
         inverse
-        backgroundImage={getAssetPath("bg@1200.jpg")}
+        backgroundImage={backgroundImage}
       />
       <div className={styles.submitYourInfo}>
         <div className={styles.submitYourInfoPage}>
@@ -320,6 +327,15 @@ const InviteToApplyDocuments = ({ listing }: InviteToApplyDocumentsProps) => {
           </aside>
         </div>
       </div>
+    </>
+  )
+}
+
+const InviteToApplyDocuments = ({ listing }: InviteToApplyDocumentsProps) => {
+  const { getAssetPath } = React.useContext(ConfigContext)
+  return (
+    <Layout>
+      <InviteToApplyDocumentsContent listing={listing} backgroundImage={getAssetPath("bg@1200.jpg")} />
     </Layout>
   )
 }

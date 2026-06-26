@@ -29,6 +29,11 @@ Account and auth pages still bridge.
 > store from the path, so the same component SSRs in the right language. `<html
 > lang>` reflects the request language. Internal links in native pages/chrome use
 > `getLocalizedPath` so navigating from a localized page keeps the language.
+> **Dates localize under SSR too:** `getCurrentLanguage` (in
+> `app/javascript/util/languageUtil`) resolves the request language server-side
+> from the per-request active i18next instance (`@uic` `locale()`) when there's no
+> `window`, so `localizedFormat` renders the right locale during SSR and matches
+> the client (no hydration mismatch).
 
 ---
 
@@ -39,11 +44,11 @@ Account and auth pages still bridge.
 | Path | Component | Notes |
 |------|-----------|-------|
 | `/listings/$id` | `pages/listings/ListingDetail.tsx` (+ `ListingDetailSections`, `PricingTable`) | Full parity: gallery, aside, eligibility/AMI tables, features, neighborhood, additional info, FCFS sales flow. Deferred/streamed below-the-fold sections. |
-| `/listings/for-sale` | `pages/listings/SaleDirectory.tsx` | Ownership directory; DALP header gated on flag. |
-| `/listings/for-rent` | `pages/listings/RentDirectory.tsx` | Rental directory. |
+| `/listings/for-sale` | `pages/listings/SaleDirectory.tsx` | Ownership directory; DALP header gated on flag. Cards render the "Available Units" stacked table (units / AMI / HOA dues / sales price) + priority-units subheader, and the sticky section nav bar (`DirectorySectionNav`: Enter a lottery / Buy now / Upcoming / Lottery results) with scroll-spy + click-to-expand. |
+| `/listings/for-rent` | `pages/listings/RentDirectory.tsx` | Rental directory. Cards render the "Available Units" stacked table (units / income range / rent) + priority-units subheader, and the section nav bar (`DirectorySectionNav`) with scroll-spy + click-to-expand. |
 | `/listings/$id/apply/intro` | `pages/apply/ListingApplyForm.tsx` | Form-engine apply entry. |
-| `/listings/$id/next-steps` | route + `getListingDetail` | Post-lottery "next steps" (skeleton; WIP). |
-| `/listings/$id/next-steps/documents` | route | Document checklist for next steps (stub; WIP). |
+| `/listings/$id/next-steps` | `pages/inviteTo/NextSteps.tsx` | Invite-to (I2A/I2I) next-steps flow: next-steps, withdrawn, contact-me-later, deadline-passed. Flag-gated (`partners.inviteToApply`, `all.i2i`); reuses the Rails `*Content` exports. |
+| `/listings/$id/next-steps/documents` | `pages/inviteTo/NextStepsDocuments.tsx` | I2A/I2I document checklist (flag-gated). |
 | `/` (home) | `pages/HomePage.tsx` | Hero + mailing-list signup; localized directory links. |
 | `/disclaimer` | `pages/assistance/Disclaimer.tsx` | Static content. |
 | `/privacy` | `pages/assistance/Privacy.tsx` | Static content. |
@@ -80,7 +85,18 @@ routes opt into the SSR-safe site chrome with `staticData: { nativeShell: true }
   Bloom `@uic` SiteHeader/SiteFooter directly (renders signed-out chrome on SSR;
   account chrome is client-only).
 - **Server data layer** — `lib/listings/server-fns.ts` (`createServerFn` handlers
-  hitting the Salesforce proxy) + Redis cache (`lib/cache/redis.ts`).
+  hitting the Salesforce proxy) + Redis cache (`lib/cache/redis.ts`). Listing data
+  is the **raw Salesforce shape** — native components read the raw SF field keys
+  (`Name`, `Building_Street_Address`, `Application_Due_Date`, `Tenure`, …), not a
+  camelCase remap, matching the Rails FE convention so Rails helpers/components can
+  be reused directly. `SerializableListing` reflects those keys; the server fns
+  pass the proxy response through unchanged.
+- **Directory card reuse** — the native directory pages reuse the Rails
+  `getListingCards` (`modules/listings/DirectoryHelpers`) for the cards (image,
+  tags, status bars, stacked unit table, priority subheader), fed a per-directory
+  `getFor{Rent,Sale}SummaryTable` built from `unitSummaries`. The section nav bar
+  reuses the Rails presentational `DirectoryPageNavigationBar` but implements
+  scroll-spy locally (see Known gaps).
 - **Vendored components** — `@bloom-housing/ui-components` removed; components live
   in `app/javascript/components/uic` as `@uic` on a single Tailwind v4 theme.
 - **Dual auth** — `lib/auth/dual-auth.ts` accepts Clerk *or* devise_token_auth
@@ -92,16 +108,17 @@ routes opt into the SSR-safe site chrome with `staticData: { nativeShell: true }
 
 ## What to tackle next (prioritized)
 
-_Done: localized listing routes, native home page, and native content pages
-(steps 1–3 of the earlier list)._
+_Done: localized listing routes, native home page, native content pages (steps
+1–3 of the earlier list), and the native next-steps (invite-to) flow._
 
 1. **Auth pages native** (sign-in, create-account, forgot/reset-password) — needs
    the auth provider story settled (Clerk flag vs. devise). Wire to dual-auth.
 2. **Account suite native** (account, settings, applications, my-account,
    my-applications) — client-rendered behind SSR'd chrome is acceptable; uses
    `requireDualAuth` server fns that already exist.
-3. **Finish the apply / next-steps native flow** — the `/listings/$id/apply/intro`
-   and `/next-steps*` routes exist but are skeletons/stubs; flesh them out.
+3. **Finish the apply native flow** — the `/listings/$id/apply/intro` route exists
+   but is a skeleton; flesh it out. (The old Angular apply form at
+   `/apply-welcome/intro` is intentionally NOT being migrated.)
 4. **Retire `RailsPage`** once no route imports it, then delete the bridge and the
    `app/javascript` page entry points (per retirement-plan Phase 2/3).
 
@@ -128,3 +145,20 @@ component work (Phase 4) that runs in parallel.
 - **SSR'ing a repo-root dep** (e.g. `react-hook-form`) can hit a dual-React
   invalid-hook crash unless it's in `ssr.noExternal` (vite.config) so Vite
   dedupes React through its graph.
+- **Next-steps JWT `t` token** is decoded **without signature verification**
+  (app-node has no JWT secret/lib); it only reads the embedded params to render.
+  Rails verifies. Acceptable because app-node takes no security-sensitive action
+  from the token. If a verified token becomes required, add the secret + a verify
+  step in `lib/inviteTo/route-config.ts`.
+- **Directory section nav scroll-spy is reimplemented, not reused.** The Rails
+  `MenuIntersectionObserver`/`NavigationBarUtils` keep observer state in
+  module-level singletons and a `ResizeObserver` that permanently closes over the
+  first-mounted page's `setActiveItem`, so the highlight breaks after client
+  navigation between directories (the second page's observers update the first,
+  unmounted page's state). `DirectorySectionNav` instead does a local
+  scroll-position calc (with bottom-of-page detection) owned by the effect and
+  cleaned up on unmount. Don't wire the Rails observer into SPA pages.
+- **Next-steps response recording** moved from Rails' load-time controller hook to
+  a client effect in `pages/inviteTo/NextSteps.tsx` (POST to
+  `/api/v1/next-steps/record-response`). The Rails language-change (referrer)
+  guard is not replicated; the no-action/deadline-passed/test guards are.

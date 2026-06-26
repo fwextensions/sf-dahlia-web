@@ -12,7 +12,8 @@ import {
 } from "../../../util/languageUtil"
 import styles from "../invite-to.module.css"
 import { ConfigContext } from "../../../lib/ConfigContext"
-import InviteToLayout from "../InviteToLayout"
+import Layout from "../../../layouts/Layout"
+import { InviteToLayoutInner } from "../InviteToLayout"
 import { recordResponse } from "../../../api/inviteToApiService"
 import InviteToGetHelp from "../InviteToGetHelp"
 import InviteToLeasingAgentInfo from "../InviteToLeasingAgentInfo"
@@ -195,24 +196,29 @@ const WhatHappensNext = () => {
   )
 }
 
-const InviteToApplyNextSteps = ({
+/**
+ * Chrome-free body of the I2A next-steps page (no `<Layout>`, no
+ * ConfigContext) so the native app-node route can render it under AppShell.
+ * Takes a resolved `backgroundImage` for the hero.
+ */
+export const InviteToApplyNextStepsContent = ({
   listing,
   deadline,
   appId,
   fileUploadUrl,
   isTest,
-}: InviteToApplyNextStepsProps) => {
-  const { getAssetPath } = React.useContext(ConfigContext)
+  backgroundImage,
+}: InviteToApplyNextStepsProps & { backgroundImage: string }) => {
   const titleName = listing?.Building_Name_for_Process || listing?.Name
   const isTestMode = isTest === true || isTest === "true"
   return (
-    <InviteToLayout
+    <InviteToLayoutInner
       listing={listing}
       type={INVITE_TO_X.APPLY}
       title={t("inviteToApplyPage.submitYourInfo.title", { listingName: titleName })}
       headerText="inviteToApplyPage.submitYourInfo.p1"
       sidebarText="inviteToApplyPage.submitYourInfo.sidebar"
-      getAssetPath={getAssetPath}
+      backgroundImage={backgroundImage}
       deadline={deadline}
     >
       <PreparingYourApplication />
@@ -230,7 +236,16 @@ const InviteToApplyNextSteps = ({
         <InviteToLeasingAgentInfo listing={listing} />
       </Mobile>
       <WhatHappensNext />
-    </InviteToLayout>
+    </InviteToLayoutInner>
+  )
+}
+
+const InviteToApplyNextSteps = (props: InviteToApplyNextStepsProps) => {
+  const { getAssetPath } = React.useContext(ConfigContext)
+  return (
+    <Layout>
+      <InviteToApplyNextStepsContent {...props} backgroundImage={getAssetPath("bg@1200.jpg")} />
+    </Layout>
   )
 }
 

@@ -28,6 +28,10 @@ export const FLAGS = {
   NEW_ACCOUNT_LAYOUT: "temp.webapp.newAccountLayout",
   /** Use Clerk for auth; when off, fall back to devise_token_auth (Rails). */
   CLERK_AUTH: "temp.webapp.auth.clerk",
+  /** Enable the Invite-to-Apply (I2A) next-steps flow. */
+  INVITE_TO_APPLY: "partners.inviteToApply",
+  /** Enable the Invite-to-Interview (I2I) next-steps flow (variant flag). */
+  I2I: "all.i2i",
 } as const
 
 export interface FlagsStore {

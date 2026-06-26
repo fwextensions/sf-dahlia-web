@@ -493,17 +493,23 @@ const InviteToInterviewDocumentsSidebar = ({ listing }: { listing: RailsSaleList
   )
 }
 
-const InviteToInterviewDocuments = ({ listing }: InviteToInterviewDocumentsProps) => {
-  const { getAssetPath } = React.useContext(ConfigContext)
-
+/**
+ * Chrome-free body of the I2I documents page (no `<Layout>`, no ConfigContext)
+ * so the native app-node route can render it under AppShell. Takes a resolved
+ * `backgroundImage` for the hero.
+ */
+export const InviteToInterviewDocumentsContent = ({
+  listing,
+  backgroundImage,
+}: InviteToInterviewDocumentsProps & { backgroundImage: string }) => {
   return (
-    <Layout>
+    <>
       <PageHeader
         title={t("inviteToInterviewPage.documents.title", {
           listingName: listing?.Building_Name_for_Process,
         })}
         inverse
-        backgroundImage={getAssetPath("bg@1200.jpg")}
+        backgroundImage={backgroundImage}
       />
       <div className={styles.submitYourInfo}>
         <div className={styles.submitYourInfoPage}>
@@ -521,6 +527,18 @@ const InviteToInterviewDocuments = ({ listing }: InviteToInterviewDocumentsProps
           </aside>
         </div>
       </div>
+    </>
+  )
+}
+
+const InviteToInterviewDocuments = ({ listing }: InviteToInterviewDocumentsProps) => {
+  const { getAssetPath } = React.useContext(ConfigContext)
+  return (
+    <Layout>
+      <InviteToInterviewDocumentsContent
+        listing={listing}
+        backgroundImage={getAssetPath("bg@1200.jpg")}
+      />
     </Layout>
   )
 }

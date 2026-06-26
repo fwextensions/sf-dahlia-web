@@ -11,10 +11,11 @@ interface InviteToDeadlinePassedProps {
   listing: RailsSaleListing | null
 }
 
-const InviteToDeadlinePassed = ({ listing }: InviteToDeadlinePassedProps) => {
+/** Chrome-free body (no `<FormLayout>`) so the native app-node route can wrap it
+ *  in its own form section under AppShell. */
+export const InviteToDeadlinePassedContent = ({ listing }: InviteToDeadlinePassedProps) => {
   return (
-    <FormLayout>
-      <LoadingOverlay isLoading={!listing}>
+    <LoadingOverlay isLoading={!listing}>
         <InviteToApplyHeader listing={listing} />
         <Card className={styles.responseCard}>
           <Card.Header className={styles.responseHeader} divider="flush">
@@ -34,9 +35,14 @@ const InviteToDeadlinePassed = ({ listing }: InviteToDeadlinePassedProps) => {
             <InviteToLeasingAgentInfo listing={listing} />
           </Card.Section>
         </Card>
-      </LoadingOverlay>
-    </FormLayout>
+    </LoadingOverlay>
   )
 }
+
+const InviteToDeadlinePassed = (props: InviteToDeadlinePassedProps) => (
+  <FormLayout>
+    <InviteToDeadlinePassedContent {...props} />
+  </FormLayout>
+)
 
 export default InviteToDeadlinePassed

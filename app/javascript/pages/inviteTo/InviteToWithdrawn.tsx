@@ -17,15 +17,16 @@ interface InviteToWithdrawnProps {
   submitPreviewLink: string
 }
 
-const InviteToWithdrawn = ({
+/** Chrome-free body (no `<FormLayout>`) so the native app-node route can wrap it
+ *  in its own form section under AppShell. */
+export const InviteToWithdrawnContent = ({
   type,
   listing,
   deadline,
   submitPreviewLink,
 }: InviteToWithdrawnProps) => {
   return (
-    <FormLayout>
-      <LoadingOverlay isLoading={!listing}>
+    <LoadingOverlay isLoading={!listing}>
         <InviteToApplyHeader listing={listing} />
         <Card className={styles.responseCard}>
           <Card.Header className={styles.responseHeader} divider="flush">
@@ -62,9 +63,14 @@ const InviteToWithdrawn = ({
             </Card.Section>
           )}
         </Card>
-      </LoadingOverlay>
-    </FormLayout>
+    </LoadingOverlay>
   )
 }
+
+const InviteToWithdrawn = (props: InviteToWithdrawnProps) => (
+  <FormLayout>
+    <InviteToWithdrawnContent {...props} />
+  </FormLayout>
+)
 
 export default InviteToWithdrawn

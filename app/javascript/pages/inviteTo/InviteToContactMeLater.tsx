@@ -16,15 +16,16 @@ interface InviteToContactMeLaterProps {
   submitPreviewLink: string
 }
 
-const InviteToContactMeLater = ({
+/** Chrome-free body (no `<FormLayout>`) so the native app-node route can wrap it
+ *  in its own form section under AppShell. */
+export const InviteToContactMeLaterContent = ({
   type,
   listing,
   deadline,
   submitPreviewLink,
 }: InviteToContactMeLaterProps) => {
   return (
-    <FormLayout>
-      <LoadingOverlay isLoading={!listing}>
+    <LoadingOverlay isLoading={!listing}>
         <InviteToApplyHeader listing={listing} />
         <Card className={styles.responseCard}>
           <Card.Header className={styles.responseHeader} divider="flush">
@@ -74,9 +75,14 @@ const InviteToContactMeLater = ({
               )}
           </Card.Section>
         </Card>
-      </LoadingOverlay>
-    </FormLayout>
+    </LoadingOverlay>
   )
 }
+
+const InviteToContactMeLater = (props: InviteToContactMeLaterProps) => (
+  <FormLayout>
+    <InviteToContactMeLaterContent {...props} />
+  </FormLayout>
+)
 
 export default InviteToContactMeLater
