@@ -159,6 +159,23 @@ describe("evaluateRedirects", () => {
       const result = await evaluateRedirects("/listings/for-rent")
       expect(result).toEqual({ redirect: false })
     })
+
+    it("does not redirect /listings/for-sale", async () => {
+      const result = await evaluateRedirects("/listings/for-sale")
+      expect(result).toEqual({ redirect: false })
+    })
+
+    it("does not run the DALP constraint for directory slugs", async () => {
+      // Directory slugs (/listings/for-rent, /listings/for-sale) are not listing
+      // ids — running dalpConstraint on them fires a wasted getListingDetail call
+      // on every navigation. The slug guard must keep the constraint from ever
+      // being invoked, regardless of language prefix.
+      await evaluateRedirects("/listings/for-rent")
+      await evaluateRedirects("/listings/for-sale")
+      await evaluateRedirects("/es/listings/for-rent")
+      await evaluateRedirects("/zh/listings/for-sale")
+      expect(mockedDalp).not.toHaveBeenCalled()
+    })
   })
 
   describe("language prefix parsing", () => {

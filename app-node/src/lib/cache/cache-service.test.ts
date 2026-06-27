@@ -174,6 +174,51 @@ describe("CacheService", () => {
       expect(fetchFn).not.toHaveBeenCalled()
     })
 
+    it("uses the ttl override instead of the param-derived default", async () => {
+      const fetchFn = vi.fn().mockResolvedValue({
+        data: [{ id: "ami" }],
+        status: 200,
+      })
+
+      // With params this would normally resolve to CACHE_TTL.withParams (600s);
+      // the override must win so annual AMI data isn't evicted every 10 minutes.
+      await cacheService.cachedGet(
+        "/api/v1/listings/ami",
+        { charts: "MOHCD:2024:50" },
+        false,
+        fetchFn,
+        CACHE_TTL.amiData
+      )
+
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        "api/v1/listings/ami?charts=MOHCD:2024:50",
+        JSON.stringify([{ id: "ami" }]),
+        "EX",
+        CACHE_TTL.amiData
+      )
+    })
+
+    it("falls back to the param-derived ttl when no override is given", async () => {
+      const fetchFn = vi.fn().mockResolvedValue({
+        data: [{ id: "x" }],
+        status: 200,
+      })
+
+      await cacheService.cachedGet(
+        "/api/v1/listings/ami",
+        { charts: "MOHCD:2024:50" },
+        false,
+        fetchFn
+      )
+
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        "api/v1/listings/ami?charts=MOHCD:2024:50",
+        JSON.stringify([{ id: "x" }]),
+        "EX",
+        CACHE_TTL.withParams
+      )
+    })
+
     it("calls fetchFn on cache miss", async () => {
       const fetchFn = vi.fn().mockResolvedValue({
         data: [{ id: "2" }],

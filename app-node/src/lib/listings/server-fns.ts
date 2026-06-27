@@ -13,6 +13,7 @@
 
 import { createServerFn } from "@tanstack/react-start"
 
+import { CACHE_TTL } from "../cache/cache-service"
 import type { ListingsParams } from "../salesforce/types"
 
 // ============================================================
@@ -427,7 +428,9 @@ export const getAmiData = createServerFn({ method: "GET" })
           { cacheService, cacheKey }
         )
         return { data: result as unknown as SerializableAmiLevel[], status: 200 }
-      }
+      },
+      // Annual data — outlast the param-based 600s default (see CACHE_TTL.amiData).
+      CACHE_TTL.amiData
     )
   })
 
@@ -479,7 +482,9 @@ export const getListingAmiCharts = createServerFn({ method: "GET" })
             ?.derivedFrom,
         }))
         return { data: enriched, status: 200 }
-      }
+      },
+      // Annual data — outlast the param-based 600s default (see CACHE_TTL.amiData).
+      CACHE_TTL.amiData
     )
   })
 

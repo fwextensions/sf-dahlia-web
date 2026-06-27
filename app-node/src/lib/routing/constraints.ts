@@ -45,6 +45,18 @@ async function fetchListing(listingId: string): Promise<Listing | null> {
  * returns false, which means the route should fall through to a redirect.
  */
 export async function dalpConstraint(listingId: string): Promise<boolean> {
+  // The DALP program runs only a few months every ~2 years. The DIRECTORY_DALP
+  // flag (which shows the DALP block in the for-sale directory) tracks that
+  // window, so when it's off there are no DALP listings to redirect. Check the
+  // flag first — it's a cheap cached Unleash lookup — and skip the listing fetch
+  // entirely, sparing every /listings/:id navigation a Salesforce round-trip in
+  // the root beforeLoad. Only short-circuit when we're sure the flag is off: on
+  // an evaluation error fall through to the fetch so we never miss a redirect.
+  const flags = await buildFlagsStore()
+  if (!flags.error && !flags.enabled.includes(FLAGS.DIRECTORY_DALP)) {
+    return true
+  }
+
   const listing = await fetchListing(listingId)
   if (!listing) return true // If we can't fetch, allow the route
   if (listing.Custom_Listing_Type === "Downpayment Assistance Loan Program") {

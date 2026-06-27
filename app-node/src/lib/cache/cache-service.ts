@@ -5,11 +5,15 @@ import type Redis from "ioredis"
  * - withParams: 600s (10 minutes) for endpoints called with query parameters
  * - withoutParams: 86400s (1 day) for endpoints called without query parameters
  * - oauthToken: 7200s (2 hours) for OAuth tokens
+ * - amiData: 86400s (1 day). AMI charts are annual data keyed by year, so the
+ *   param-based 600s rule is needlessly short — it forces a ~4s Rails recompute
+ *   every 10 minutes. AMI callers pass this explicitly via cachedGet's ttl override.
  */
 export const CACHE_TTL = {
   withParams: 600,
   withoutParams: 86400,
   oauthToken: 7200,
+  amiData: 86400,
 } as const
 
 /**
@@ -109,15 +113,19 @@ export class CacheService {
    * @param params - Optional query parameters
    * @param force - If true, bypass cache and fetch fresh data
    * @param fetchFn - Function that performs the actual data fetch
+   * @param ttlOverride - Optional TTL (seconds) to use instead of the
+   *   endpoint/param-derived default. Use for data whose freshness needs differ
+   *   from the param-based rule (e.g. annual AMI charts called with params).
    */
   async cachedGet<T>(
     endpoint: string,
     params: Record<string, string> | undefined,
     force: boolean,
-    fetchFn: FetchFn<T>
+    fetchFn: FetchFn<T>,
+    ttlOverride?: number
   ): Promise<T> {
     const key = this.generateCacheKey(endpoint, params)
-    const ttl = this.resolveTtl(endpoint, params)
+    const ttl = ttlOverride ?? this.resolveTtl(endpoint, params)
 
     // If not force-refreshing, check cache first
     if (!force) {

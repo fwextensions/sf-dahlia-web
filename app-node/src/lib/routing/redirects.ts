@@ -38,6 +38,15 @@ export interface NoRedirect {
 export type RedirectEvaluation = RedirectResult | NoRedirect
 
 /**
+ * Slugs that live under /listings/* but are NOT listing ids — they have their
+ * own static routes (the rental/ownership directories). The `/listings/:id`
+ * redirect rule below must skip these: otherwise the DALP constraint treats the
+ * slug as a listing id and fires getListingDetail("for-rent") on every
+ * navigation, a wasted (and retried) Salesforce round-trip. See constraints.ts.
+ */
+const LISTINGS_DIRECTORY_SLUGS = new Set(["for-rent", "for-sale"])
+
+/**
  * Parse the URL path to extract the optional lang prefix and remaining path.
  */
 function parseLangPrefix(pathname: string): {
@@ -97,7 +106,7 @@ export async function evaluateRedirects(
   // Pattern: /listings/:id → / (when DALP constraint fails)
   // Only match /listings/:id exactly (not sub-paths like /listings/:id/apply/intro)
   const listingMatch = restPath.match(/^\/listings\/([^/]+)$/)
-  if (listingMatch) {
+  if (listingMatch && !LISTINGS_DIRECTORY_SLUGS.has(listingMatch[1])) {
     const listingId = listingMatch[1]
     const passes = await dalpConstraint(listingId)
     if (!passes) {
