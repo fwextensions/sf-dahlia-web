@@ -100,6 +100,16 @@ export default defineConfig({
     // chunks don't emit a size warning on every build.
     chunkSizeWarningLimit: 1000,
     rollupOptions: { onwarn },
+    // Emit ONE stylesheet instead of per-chunk CSS. With code splitting on,
+    // shared-chunk CSS (e.g. routeUtil, which carries the ui-seeds component
+    // styles like .seeds-common-message) is loaded as a blocking <link> on SSR
+    // hard-load but dropped on client-side navigation — the router swaps in only
+    // the destination route's computed asset set, which omits shared chunks, so
+    // components render unstyled after an SPA nav (e.g. the listing-detail
+    // "Application deadline" Message). A single bundle is always present across
+    // navigations and matches dev (one combined stylesheet). The pinned @layer
+    // order (see __root.tsx) keeps the cascade deterministic within it.
+    cssCodeSplit: false,
   },
   server: {
     port: 3001,
