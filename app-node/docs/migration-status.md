@@ -1,6 +1,6 @@
 # DAHLIA migration status — app-node (TanStack Start)
 
-**Updated:** 2026-06-21 · **Branch:** `jdunning/poc/tanstack-on-i18n`
+**Updated:** 2026-06-26 · **Branch:** `jdunning/poc/tanstack-on-i18n`
 
 This is the living **status snapshot**: which pages render natively in app-node
 vs. fall back to the Rails `app/javascript` bridge, what infrastructure is in
@@ -20,9 +20,10 @@ app-node serves every page, but in two modes:
   original react-on-rails component from `app/javascript` (`ssr: false`). A
   parity shim, being retired one route at a time.
 
-So far the **listing surface, home page, and all content/get-assistance pages
-are native** — at both the unprefixed and `/$lang` paths (es/zh/tl get SSR too).
-Account and auth pages still bridge.
+So far the **listing surface, home page, all content/get-assistance pages, and
+the post-lottery next-steps (invite-to) flow are native** — at both the
+unprefixed and `/$lang` paths (es/zh/tl get SSR too). Account and auth pages
+still bridge.
 
 > **Localization:** native pages now render at both the unprefixed (English) and
 > `/$lang` paths via shared route configs; the root `beforeLoad` builds the i18n
