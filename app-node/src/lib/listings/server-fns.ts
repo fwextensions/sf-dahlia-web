@@ -439,54 +439,106 @@ export const getAmiData = createServerFn({ method: "GET" })
 // ============================================================
 
 /**
- * Fetches the full AMI charts a listing's units reference, in ONE call.
+ * Fetches the full AMI charts a listing's units reference.
  *
- * The Rails `ami` endpoint takes array params (year[]/percent[]/chartType[])
- * and returns one chart per entry. We then enrich each chart the way the Rails
- * listingDetailsReducer does: pull chartType/year off the first value and attach
- * `derivedFrom` (MinAmi/MaxAmi) by matching percent back to the requested
- * metadata. The caller derives that metadata from units via
- * getAmiChartMetaDataFromUnits (see lib/listings/ami.ts).
+ * An AMI chart is identified by (year, type, percent) and is listing-independent:
+ * the 2024/MOHCD/50% income table is identical for every listing that references
+ * it. So we cache each chart under its own canonical key rather than caching the
+ * whole per-listing set — the first listing to need a chart warms it for the
+ * entire catalog, and most listings then never pay the ~4s Rails recompute.
+ *
+ * Flow: read every requested chart from cache individually; batch ONLY the misses
+ * into a single Rails call (the `ami` endpoint takes year[]/percent[]/chartType[]
+ * arrays and returns one chart per entry, in order); cache each fetched chart;
+ * then reassemble in the requested order, attaching the per-request `derivedFrom`
+ * (MinAmi/MaxAmi) — which is a property of the unit, not the chart, so it is NOT
+ * cached. `derivedFrom` metadata comes from getAmiChartMetaDataFromUnits.
  */
 export const getListingAmiCharts = createServerFn({ method: "GET" })
   .validator((data: { charts: AmiChartMetaInput[] }) => data)
-  .handler(async ({ data }): Promise<SerializableAmiChart[]> => {
-    if (!data.charts.length) return []
+  .handler(({ data }): Promise<SerializableAmiChart[]> =>
+    resolveAmiChartsCached(data.charts)
+  )
 
-    const { cacheService, proxyClient, withRetry } = await getServerDeps()
+/** Dependencies resolved by getServerDeps; broken out so the AMI cache logic
+ *  below can be unit-tested with fakes (createServerFn handlers can't). */
+type ServerDeps = Awaited<ReturnType<typeof getServerDeps>>
 
-    // Cache key is order-stable on the requested chart tuples.
-    const params: Record<string, string> = {
-      charts: data.charts
-        .map((c) => `${c.type}:${c.year}:${c.percent}`)
-        .join(","),
-    }
-    const endpoint = "/api/v1/listings/ami"
-    const cacheKey = cacheService.generateCacheKey(endpoint, params)
+/**
+ * Per-chart-cached resolution for getListingAmiCharts (see that fn's docs).
+ * Exported for unit testing; the server fn just supplies real deps.
+ */
+export async function resolveAmiChartsCached(
+  charts: AmiChartMetaInput[],
+  deps?: ServerDeps
+): Promise<SerializableAmiChart[]> {
+  if (!charts.length) return []
 
-    return cacheService.cachedGet<SerializableAmiChart[]>(
-      endpoint,
-      params,
-      false,
-      async () => {
-        const result = await withRetry(
-          () => proxyClient.listings.getAmiCharts(data.charts),
-          { cacheService, cacheKey }
+  const { cacheService, proxyClient, withRetry } = deps ?? (await getServerDeps())
+
+  const endpoint = "/api/v1/listings/ami"
+  // Canonical per-chart key, shared across listings (sorted params → stable).
+  const keyFor = (c: AmiChartMetaInput) =>
+    cacheService.generateCacheKey(endpoint, {
+      chartType: c.type,
+      percent: String(c.percent),
+      year: String(c.year),
+    })
+
+  // 1. Read each requested chart from cache individually.
+  const cached = await Promise.all(
+    charts.map((c) => cacheService.get<SerializableAmiChart>(keyFor(c)))
+  )
+
+  // 2. Batch-fetch only the misses in a single Rails call.
+  const misses = charts.filter((_, i) => cached[i] === null)
+  const resolvedMisses = new Map<string, SerializableAmiChart>()
+  if (misses.length) {
+    let fetched: SerializableAmiChart[] | null = null
+    try {
+      fetched = (await withRetry(() =>
+        proxyClient.listings.getAmiCharts(misses)
+      )) as unknown as SerializableAmiChart[]
+    } catch (err) {
+      // On fetch failure, fall back to each chart's never-expiring stale copy;
+      // if any missing chart has none, the data is incomplete — rethrow.
+      for (const meta of misses) {
+        const stale = await cacheService.get<SerializableAmiChart>(
+          `stale:${keyFor(meta)}`
         )
-        // Enrich chartType/year/derivedFrom (mirrors listingDetailsReducer).
-        const enriched = (result as unknown as SerializableAmiChart[]).map((chart) => ({
-          ...chart,
-          chartType: chart.values[0]?.chartType,
-          year: chart.values[0]?.year,
-          derivedFrom: data.charts.find((c) => c.percent === Number(chart.percent))
-            ?.derivedFrom,
-        }))
-        return { data: enriched, status: 200 }
-      },
-      // Annual data — outlast the param-based 600s default (see CACHE_TTL.amiData).
-      CACHE_TTL.amiData
-    )
+        if (!stale) throw err
+        resolvedMisses.set(keyFor(meta), stale)
+      }
+    }
+
+    if (fetched) {
+      await Promise.all(
+        misses.map(async (meta, i) => {
+          const chart = fetched![i]
+          if (!chart) return
+          // Strip per-request derivedFrom; cache only the shareable chart.
+          const shareable: SerializableAmiChart = {
+            percent: chart.percent,
+            values: chart.values,
+            chartType: chart.values[0]?.chartType as string | undefined,
+            year: chart.values[0]?.year as number | undefined,
+          }
+          resolvedMisses.set(keyFor(meta), shareable)
+          await cacheService.set(keyFor(meta), shareable, CACHE_TTL.amiData)
+        })
+      )
+    }
+  }
+
+  // 3. Reassemble in requested order, attaching the per-request derivedFrom.
+  const result: SerializableAmiChart[] = []
+  charts.forEach((meta, i) => {
+    const chart = cached[i] ?? resolvedMisses.get(keyFor(meta))
+    if (!chart) return // unresolved (Rails returned fewer charts) — omit column
+    result.push({ ...chart, derivedFrom: meta.derivedFrom })
   })
+  return result
+}
 
 // ============================================================
 // Server Function: getEligibleListings
