@@ -15,6 +15,12 @@ import { createServerFn } from "@tanstack/react-start"
 
 import { CACHE_TTL } from "../cache/cache-service"
 import type { ListingsParams } from "../salesforce/types"
+// Type-only imports — fully erased at compile time, so they do NOT pull
+// ioredis/client/etc. into the client bundle (see getServerDeps below). They
+// exist solely to give the dynamically-imported deps their real signatures.
+import type { createCacheService } from "../cache/cache-service"
+import type { createSalesforceProxyClient } from "../salesforce/client"
+import type { withRetry as withRetryFn } from "../salesforce/retry"
 
 // ============================================================
 // Serializable Types (JSON-safe versions without index signatures)
@@ -182,8 +188,11 @@ export interface ListingDetailLoaderData {
 // Helper: Create Redis + CacheService + ProxyClient on server
 // ============================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ServerDepsType = { cacheService: any; proxyClient: any; withRetry: any }
+type ServerDepsType = {
+  cacheService: ReturnType<typeof createCacheService>
+  proxyClient: ReturnType<typeof createSalesforceProxyClient>
+  withRetry: typeof withRetryFn
+}
 
 /**
  * Lazily resolve server-only dependencies via dynamic imports, then cache the
@@ -330,6 +339,22 @@ export const getListingUnits = createServerFn({ method: "GET" })
     )
   })
 
+/**
+ * Cache-only peek for a listing's units: a single Redis GET that never triggers
+ * the upstream Salesforce fetch. Returns the cached units, or `null` on a miss.
+ * The loader uses this to decide hit-vs-miss deterministically (instead of
+ * racing a wall-clock timer) so a cold load can defer immediately.
+ */
+export const peekListingUnits = createServerFn({ method: "GET" })
+  .validator((data: ListingByIdInput) => data)
+  .handler(async ({ data }): Promise<SerializableUnit[] | null> => {
+    const { cacheService } = await getServerDeps()
+    const endpoint = `/api/v1/listings/${data.id}/units`
+    return cacheService.get<SerializableUnit[]>(
+      cacheService.generateCacheKey(endpoint, undefined)
+    )
+  })
+
 // ============================================================
 // Server Function: getListingPreferences
 // ============================================================
@@ -356,6 +381,20 @@ export const getListingPreferences = createServerFn({ method: "GET" })
         )
         return { data: result as unknown as SerializablePreference[], status: 200 }
       }
+    )
+  })
+
+/**
+ * Cache-only peek for a listing's preferences (see peekListingUnits). Returns
+ * cached preferences or `null` on a miss, without hitting Salesforce.
+ */
+export const peekListingPreferences = createServerFn({ method: "GET" })
+  .validator((data: ListingByIdInput) => data)
+  .handler(async ({ data }): Promise<SerializablePreference[] | null> => {
+    const { cacheService } = await getServerDeps()
+    const endpoint = `/api/v1/listings/${data.id}/preferences`
+    return cacheService.get<SerializablePreference[]>(
+      cacheService.generateCacheKey(endpoint, undefined)
     )
   })
 
@@ -563,6 +602,46 @@ export async function resolveAmiChartsCached(
   })
   return result
 }
+
+/**
+ * Cache-only peek for a listing's AMI charts. Returns the fully-assembled charts
+ * ONLY if every requested chart is already cached; returns `null` if any one is
+ * a miss (so the loader defers the whole pricing block rather than rendering a
+ * partial table). Never triggers the upstream Rails fetch. Exported for testing.
+ */
+export async function peekAmiChartsCached(
+  charts: AmiChartMetaInput[],
+  deps?: ServerDeps
+): Promise<SerializableAmiChart[] | null> {
+  if (!charts.length) return []
+
+  const { cacheService } = deps ?? (await getServerDeps())
+  const endpoint = "/api/v1/listings/ami"
+  const keyFor = (c: AmiChartMetaInput) =>
+    cacheService.generateCacheKey(endpoint, {
+      chartType: c.type,
+      percent: String(c.percent),
+      year: String(c.year),
+    })
+
+  const cached = await Promise.all(
+    charts.map((c) => cacheService.get<SerializableAmiChart>(keyFor(c)))
+  )
+  if (cached.some((c) => c === null)) return null
+
+  // Attach the per-request derivedFrom (a unit property, not cached on the chart).
+  return charts.map((meta, i) => ({
+    ...(cached[i] as SerializableAmiChart),
+    derivedFrom: meta.derivedFrom,
+  }))
+}
+
+/** Cache-only peek server fn for AMI charts (see peekAmiChartsCached). */
+export const peekListingAmiCharts = createServerFn({ method: "GET" })
+  .validator((data: { charts: AmiChartMetaInput[] }) => data)
+  .handler(({ data }): Promise<SerializableAmiChart[] | null> =>
+    peekAmiChartsCached(data.charts)
+  )
 
 // ============================================================
 // Server Function: getEligibleListings

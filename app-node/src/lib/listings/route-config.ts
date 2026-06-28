@@ -18,6 +18,9 @@ import {
   getListingPreferences,
   getListingAmiCharts,
   getListings,
+  peekListingUnits,
+  peekListingPreferences,
+  peekListingAmiCharts,
   type SerializableListing,
   type SerializableUnit,
   type SerializablePreference,
@@ -34,64 +37,84 @@ export const listingDetailSearchSchema = (
 ): { force?: true } =>
   search.force === "true" || search.force === true ? { force: true } : {}
 
-/** Sentinel that races a promise against a timeout. Resolves to the promise
- *  value if it wins, or `null` if the timeout fires first. */
-function tryResolveWithin<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  return Promise.race([promise, new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))])
-}
-
 export interface PricingData {
   units: SerializableUnit[]
   amiCharts: SerializableAmiChart[]
 }
 
 /**
+ * Resolve the pricing block (units + AMI charts) for the loader.
+ *
+ * Uses a cache-only peek to decide hit-vs-miss deterministically:
+ * - Units + every referenced AMI chart cached → return data inline (no spinner).
+ * - Units cached but some AMI chart isn't → defer just the AMI fetch (units are
+ *   already in hand, so don't re-fetch them).
+ * - Units not cached → defer the full units→AMI fetch.
+ */
+async function resolvePricing(
+  id: string,
+  unitsCached: SerializableUnit[] | null
+): Promise<PricingData | Promise<PricingData>> {
+  if (!unitsCached) {
+    // Units not cached — defer the full fetch (units, then the AMI charts they
+    // reference). Shell flushes now; this streams in behind a spinner.
+    return defer(
+      getListingUnits({ data: { id } }).then(async (units) => ({
+        units,
+        amiCharts: await getListingAmiCharts({
+          data: { charts: getAmiChartMetaDataFromUnits(units) },
+        }),
+      }))
+    )
+  }
+
+  const charts = getAmiChartMetaDataFromUnits(unitsCached)
+  const amiCached = await peekListingAmiCharts({ data: { charts } })
+  if (amiCached) {
+    // Full hit — render inline, no Suspense boundary, no spinner.
+    return { units: unitsCached, amiCharts: amiCached }
+  }
+
+  // Units cached but some AMI chart is cold — defer only the AMI fetch.
+  return defer(
+    getListingAmiCharts({ data: { charts } }).then((amiCharts) => ({
+      units: unitsCached,
+      amiCharts,
+    }))
+  )
+}
+
+/**
  * Listing-detail loader.
  *
- * Streams the HTML shell as soon as the core listing is fetched, then:
+ * Awaits only the core listing, then for each below-the-fold section does a
+ * deterministic cache **peek** (a fast Redis GET that never triggers the slow
+ * upstream fetch) to decide:
  *
- * - **Cache hit** (units + AMI + preferences resolve within FAST_MS): all data
- *   is available before the shell flushes, so TanStack includes it in the first
- *   chunk. No spinners shown, no flash.
+ * - **Cache hit:** return the data inline so TanStack renders it in the first
+ *   chunk — no Suspense boundary, no spinner flash.
  *
- * - **Cache miss** (slow Salesforce round-trip): shell streams immediately with
- *   spinners; the deferred sections stream in as each resolves, exactly like the
- *   original defer() behaviour.
+ * - **Cache miss:** `defer()` the real fetch so the shell flushes immediately
+ *   and the section streams in behind a spinner once it resolves.
  *
- * The trick: race each promise group against FAST_MS. If it wins we return the
- * resolved data directly (no defer needed — TanStack renders it synchronously).
- * If it loses we defer the original promise so the shell can flush first.
+ * The peek replaces the earlier wall-clock race: a miss is detected in one
+ * Redis round-trip (~20ms) instead of waiting out a fixed threshold, so cold
+ * pages flush their shell sooner with no arbitrary constant to tune.
  */
-const FAST_MS = 150 // Redis round-trip is typically <20ms; 150ms is safe headroom
-
 export async function loadListingDetail(id: string, force?: boolean) {
   const listing = await getListingDetail({ data: { id, force } })
 
-  // Fire units and preferences in parallel — independent of each other.
-  const unitsPromise = getListingUnits({ data: { id } })
-  const preferencesPromise = getListingPreferences({ data: { id } })
-
-  // AMI charts depend on units, so chain off units.
-  const pricingPromise = unitsPromise.then(async (units) => ({
-    units,
-    amiCharts: await getListingAmiCharts({
-      data: { charts: getAmiChartMetaDataFromUnits(units) },
-    }),
-  }))
-
-  // Race each group against the fast threshold.
-  const [pricingEarly, preferencesEarly] = await Promise.all([
-    tryResolveWithin(pricingPromise, FAST_MS),
-    tryResolveWithin(preferencesPromise, FAST_MS),
+  // Fast cache-only peeks, in parallel — never hit Salesforce.
+  const [unitsCached, preferencesCached] = await Promise.all([
+    peekListingUnits({ data: { id } }),
+    peekListingPreferences({ data: { id } }),
   ])
 
   return {
     listing,
-    // If the data is already here, return it directly so the shell renders
-    // fully with no Suspense boundary. Otherwise defer so the shell flushes
-    // first and the spinners stream in.
-    pricingData: pricingEarly ?? defer(pricingPromise),
-    preferencesData: preferencesEarly ?? defer(preferencesPromise),
+    pricingData: await resolvePricing(id, unitsCached),
+    preferencesData:
+      preferencesCached ?? defer(getListingPreferences({ data: { id } })),
   }
 }
 
