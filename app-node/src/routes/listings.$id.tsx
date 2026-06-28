@@ -25,12 +25,12 @@ export const Route = createFileRoute("/listings/$id")({
 })
 
 function ListingDetailRoute() {
-  const { listing, pricingPromise, preferencesPromise } = Route.useLoaderData()
+  const { listing, pricingData, preferencesData } = Route.useLoaderData()
   return (
     <ListingDetail
       listing={listing}
-      pricingPromise={pricingPromise}
-      preferencesPromise={preferencesPromise}
+      pricingData={pricingData}
+      preferencesData={preferencesData}
     />
   )
 }

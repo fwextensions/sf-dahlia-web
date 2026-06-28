@@ -19,6 +19,9 @@ import {
   getListingAmiCharts,
   getListings,
   type SerializableListing,
+  type SerializableUnit,
+  type SerializablePreference,
+  type SerializableAmiChart,
 } from "./server-fns"
 import { getAmiChartMetaDataFromUnits } from "./ami"
 
@@ -31,19 +34,44 @@ export const listingDetailSearchSchema = (
 ): { force?: true } =>
   search.force === "true" || search.force === true ? { force: true } : {}
 
+/** Sentinel that races a promise against a timeout. Resolves to the promise
+ *  value if it wins, or `null` if the timeout fires first. */
+function tryResolveWithin<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([promise, new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))])
+}
+
+export interface PricingData {
+  units: SerializableUnit[]
+  amiCharts: SerializableAmiChart[]
+}
+
 /**
- * Listing-detail loader. Awaits ONLY the core listing (above-the-fold) so the
- * shell flushes immediately for a fast FCP, then defers the heavier
- * below-the-fold sections as streamed promises (TanStack streams them in after
- * the shell; ListingDetail consumes them via <Await>).
+ * Listing-detail loader.
+ *
+ * Streams the HTML shell as soon as the core listing is fetched, then:
+ *
+ * - **Cache hit** (units + AMI + preferences resolve within FAST_MS): all data
+ *   is available before the shell flushes, so TanStack includes it in the first
+ *   chunk. No spinners shown, no flash.
+ *
+ * - **Cache miss** (slow Salesforce round-trip): shell streams immediately with
+ *   spinners; the deferred sections stream in as each resolves, exactly like the
+ *   original defer() behaviour.
+ *
+ * The trick: race each promise group against FAST_MS. If it wins we return the
+ * resolved data directly (no defer needed — TanStack renders it synchronously).
+ * If it loses we defer the original promise so the shell can flush first.
  */
+const FAST_MS = 150 // Redis round-trip is typically <20ms; 150ms is safe headroom
+
 export async function loadListingDetail(id: string, force?: boolean) {
   const listing = await getListingDetail({ data: { id, force } })
 
+  // Fire units and preferences in parallel — independent of each other.
   const unitsPromise = getListingUnits({ data: { id } })
   const preferencesPromise = getListingPreferences({ data: { id } })
-  // AMI charts depend on units (each unit references a chart by type/year/
-  // percent), so chain off units — still deferred, streams after units resolve.
+
+  // AMI charts depend on units, so chain off units.
   const pricingPromise = unitsPromise.then(async (units) => ({
     units,
     amiCharts: await getListingAmiCharts({
@@ -51,10 +79,19 @@ export async function loadListingDetail(id: string, force?: boolean) {
     }),
   }))
 
+  // Race each group against the fast threshold.
+  const [pricingEarly, preferencesEarly] = await Promise.all([
+    tryResolveWithin(pricingPromise, FAST_MS),
+    tryResolveWithin(preferencesPromise, FAST_MS),
+  ])
+
   return {
     listing,
-    pricingPromise: defer(pricingPromise),
-    preferencesPromise: defer(preferencesPromise),
+    // If the data is already here, return it directly so the shell renders
+    // fully with no Suspense boundary. Otherwise defer so the shell flushes
+    // first and the spinners stream in.
+    pricingData: pricingEarly ?? defer(pricingPromise),
+    preferencesData: preferencesEarly ?? defer(preferencesPromise),
   }
 }
 

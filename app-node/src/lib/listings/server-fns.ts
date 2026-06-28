@@ -182,22 +182,46 @@ export interface ListingDetailLoaderData {
 // Helper: Create Redis + CacheService + ProxyClient on server
 // ============================================================
 
-async function getServerDeps() {
-  const { createCacheService } = await import("../cache/cache-service")
-  const { createSalesforceProxyClient } = await import("../salesforce/client")
-  const { withRetry } = await import("../salesforce/retry")
-  const { getRedis } = await import("../cache/redis")
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ServerDepsType = { cacheService: any; proxyClient: any; withRetry: any }
 
-  // Shared singleton client. Await the connection settling so the FIRST cache
-  // read hits a ready socket instead of throwing (see cache/redis.ts). After the
-  // first call `ready` is already resolved, so this await is effectively free.
-  const { client: redis, ready } = getRedis()
-  await ready
+/**
+ * Lazily resolve server-only dependencies via dynamic imports, then cache the
+ * result. Dynamic imports are required here — NOT static top-level imports —
+ * because server-fns.ts is in the module graph traced by the client bundle.
+ * Static imports of ioredis/client/etc. would pull those modules into the
+ * browser bundle (Vite externalizes ioredis from the client build, which emits
+ * an unresolvable bare `import "ioredis"` in the browser). Dynamic imports stay
+ * in the server bundle via TanStack Start's server-fn code-splitting.
+ *
+ * The promise is memoized so the dynamic import + Redis connect overhead only
+ * pays once per server process, not once per request.
+ */
+let _serverDeps: Promise<ServerDepsType> | null = null
 
-  const cacheService = createCacheService(redis)
-  const proxyClient = createSalesforceProxyClient()
+async function getServerDeps(): Promise<ServerDepsType> {
+  if (_serverDeps) return _serverDeps
 
-  return { cacheService, proxyClient, withRetry }
+  _serverDeps = (async () => {
+    const { createCacheService } = await import("../cache/cache-service")
+    const { createSalesforceProxyClient } = await import("../salesforce/client")
+    const { withRetry } = await import("../salesforce/retry")
+    const { getRedis } = await import("../cache/redis")
+
+    // Shared singleton client. Await the connection settling so the FIRST cache
+    // read hits a ready socket instead of throwing (see cache/redis.ts). After the
+    // first call `ready` is already resolved, so this await is effectively free.
+    const { client: redis, ready } = getRedis()
+    await ready
+
+    return {
+      cacheService: createCacheService(redis),
+      proxyClient: createSalesforceProxyClient(),
+      withRetry,
+    }
+  })()
+
+  return _serverDeps
 }
 
 // ============================================================

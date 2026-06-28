@@ -97,11 +97,16 @@ import "../../../../app/javascript/modules/listingDetailsAside/ListingDetailsApp
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+import type { PricingData } from "../../lib/listings/route-config"
+
 interface ListingDetailProps {
   listing: SerializableListing
-  // Below-the-fold sections stream in after the shell (see route loader).
-  pricingPromise: Promise<{ units: SerializableUnit[]; amiCharts: SerializableAmiChart[] }>
-  preferencesPromise: Promise<SerializablePreference[]>
+  /**
+   * Either pre-resolved data (cache hit — no spinner) or a deferred promise
+   * (cache miss — spinner shown until it resolves). See route-config.ts.
+   */
+  pricingData: PricingData | Promise<PricingData>
+  preferencesData: SerializablePreference[] | Promise<SerializablePreference[]>
 }
 
 interface ListingEvent {
@@ -157,8 +162,7 @@ const raw = (listing: SerializableListing): RawListing => listing as unknown as 
 const asRails = (listing: SerializableListing): RailsListing =>
   listing as unknown as RailsListing
 
-// Fallback while a deferred section streams in. Mirrors the spinner the Rails
-// pricing table shows during its client-side fetch.
+// Fallback while a deferred section streams in on cache miss.
 function SectionLoading() {
   return (
     <div className="flex justify-center md:my-6 md:pr-8 md:px-0 md:w-2/3 px-3 w-full">
@@ -882,10 +886,32 @@ function MohcdPanel() {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+/**
+ * Renders `children(data)` immediately if `dataOrPromise` is already resolved,
+ * or wraps in <Await> with a spinner fallback when it's a pending promise.
+ * This is how we avoid the flash-of-spinner on cache hits: the loader returns
+ * resolved data directly (not wrapped in defer()), so TanStack never creates a
+ * Suspense boundary for it.
+ */
+function MaybeDeferred<T>({
+  dataOrPromise,
+  fallback,
+  children,
+}: {
+  dataOrPromise: T | Promise<T>
+  fallback: React.ReactNode
+  children: (data: T) => React.ReactNode
+}) {
+  if (dataOrPromise instanceof Promise) {
+    return <Await promise={dataOrPromise} fallback={fallback}>{children}</Await>
+  }
+  return <>{children(dataOrPromise)}</>
+}
+
 export function ListingDetail({
   listing,
-  pricingPromise,
-  preferencesPromise,
+  pricingData,
+  preferencesData,
 }: ListingDetailProps) {
   const alertClasses = "flex-grow mt-6 max-w-6xl w-full"
 
@@ -913,24 +939,24 @@ export function ListingDetail({
           )}
         </div>
 
-        {/* Units / pricing — deferred. Rendered as a direct article child (not in a
-            ListingDetailItem) so its own md:w-2/3 spans 2/3 of the article, matching
-            Rails. Nesting it in a ListingDetailItem would constrain it twice. */}
-        <Await promise={pricingPromise} fallback={<SectionLoading />}>
+        {/* Units / pricing. Rendered as a direct article child (not in a
+            ListingDetailItem) so its own md:w-2/3 spans 2/3 of the article,
+            matching Rails. Nesting it in a ListingDetailItem would constrain it twice. */}
+        <MaybeDeferred dataOrPromise={pricingData} fallback={<SectionLoading />}>
           {({ units, amiCharts }) =>
             units.length > 0 ? (
               <PricingTable listing={listing} units={units} amiCharts={amiCharts} />
             ) : null
           }
-        </Await>
+        </MaybeDeferred>
 
         <ListingDetails>
           <Aside listing={listing} />
 
-          {/* Eligibility / preferences — deferred (needs preferences + pricing). */}
-          <Await promise={preferencesPromise} fallback={<SectionLoading />}>
+          {/* Eligibility / preferences */}
+          <MaybeDeferred dataOrPromise={preferencesData} fallback={<SectionLoading />}>
             {(preferences) => (
-              <Await promise={pricingPromise} fallback={<SectionLoading />}>
+              <MaybeDeferred dataOrPromise={pricingData} fallback={<SectionLoading />}>
                 {({ units, amiCharts }) => (
                   <EligibilitySection
                     listing={listing}
@@ -939,14 +965,14 @@ export function ListingDetail({
                     amiCharts={amiCharts}
                   />
                 )}
-              </Await>
+              </MaybeDeferred>
             )}
-          </Await>
+          </MaybeDeferred>
 
-          {/* Features — deferred (needs units for the unit accordions). */}
-          <Await promise={pricingPromise} fallback={<SectionLoading />}>
+          {/* Features (unit accordions) */}
+          <MaybeDeferred dataOrPromise={pricingData} fallback={<SectionLoading />}>
             {({ units }) => <FeaturesSection listing={listing} units={units} />}
-          </Await>
+          </MaybeDeferred>
 
           {/* Neighborhood (map) */}
           <NeighborhoodSection listing={listing} />
