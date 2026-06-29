@@ -1,6 +1,6 @@
 # DAHLIA migration status — app-node (TanStack Start)
 
-**Updated:** 2026-06-26 · **Branch:** `jdunning/poc/tanstack-on-i18n`
+**Updated:** 2026-06-29 · **Branch:** `jdunning/poc/tanstack-on-i18n`
 
 This is the living **status snapshot**: which pages render natively in app-node
 vs. fall back to the Rails `app/javascript` bridge, what infrastructure is in
@@ -92,6 +92,23 @@ routes opt into the SSR-safe site chrome with `staticData: { nativeShell: true }
   camelCase remap, matching the Rails FE convention so Rails helpers/components can
   be reused directly. `SerializableListing` reflects those keys; the server fns
   pass the proxy response through unchanged.
+  - **Deterministic cache peek (listing detail)** — `loadListingDetail`
+    (`lib/listings/route-config.ts`) decides hit-vs-miss per section with a
+    cache-only **peek** (`peek{ListingUnits,ListingPreferences,ListingAmiCharts}`,
+    a Redis `GET` that never triggers the Salesforce fetch). Cache hit → data
+    returned **inline** so the section SSRs with no Suspense boundary (no spinner,
+    no flash); cache miss → `defer()` so the shell streams immediately and the
+    section fills in behind a spinner. Replaced an earlier 150ms wall-clock race.
+    **Gotcha:** never `await` a `defer()` result — `await` recursively unwraps the
+    thenable and blocks the loader until it settles, silently killing streaming;
+    deferred promises must be assigned straight to the returned property.
+  - **Server cold-start warmup** — `serve.mjs` fires one lightweight internal
+    request at boot to warm `getServerDeps()` (Redis connect + dynamic imports)
+    before real traffic, so the first user request pays no init latency. Must live
+    in `serve.mjs`: TanStack Start's entry transform strips all top-level boot code
+    from `src/server.ts` in the build. `getServerDeps()` is memoized (one shared
+    init promise) and clears its memo on rejection so a transient init failure
+    can retry instead of poisoning the process.
 - **Directory card reuse** — the native directory pages reuse the Rails
   `getListingCards` (`modules/listings/DirectoryHelpers`) for the cards (image,
   tags, status bars, stacked unit table, priority subheader), fed a per-directory
@@ -163,3 +180,58 @@ component work (Phase 4) that runs in parallel.
   a client effect in `pages/inviteTo/NextSteps.tsx` (POST to
   `/api/v1/next-steps/record-response`). The Rails language-change (referrer)
   guard is not replicated; the no-action/deadline-passed/test guards are.
+
+---
+
+## Open issue: responsive-wrapper SSR hydration mismatch (#418/#422)
+
+**Status:** root-caused, fix not yet applied (awaiting approach decision).
+
+**Symptom.** On a full SSR load of the listing detail (refresh / direct URL, not
+client nav from the directory), the console logs React **#418** (server HTML
+didn't match client) cascading into **#422** (a Suspense boundary client-rendered
+because it updated mid-hydration). React then throws away the server markup for
+that subtree and re-renders it on the client — this is the **visible "flash"**
+where the sidebar/eligibility/features re-render a beat after load (same root
+cause as the FOUC/late-sidebar report). Client navigation from the directory
+doesn't show it because that path is a pure client render (no hydration).
+
+**Root cause.** `app/javascript/components/uic/ResponsiveWrappers.tsx` —
+`Desktop`/`Mobile` gate their children on `useMediaQuery`, whose `useState`
+**initializer reads `window.matchMedia` on the client** (`defaultMatches` on the
+server). So the server renders the Mobile branch (`Desktop` → `null`) while a
+desktop client's first render picks the Desktop branch (e.g. the `<ul>` in
+`ResponsiveContentList`). Server and client-initial DOM differ → hydration
+mismatch. Used in **20+ places** (listing sections, the aside/sidebar, lottery,
+assistance, invite flows), so the fix is central — one change to
+`ResponsiveWrappers` fixes every consumer. (Confirmed on the **test branch** too,
+so it predates the streaming/peek work; restoring streaming just made it more
+visible. Reproduce with the dev server, which prints the de-minified
+"Expected server HTML to contain a matching `<ul>` in `<div>`".)
+
+**Fix options.**
+
+1. **Minimal SSR-safe (`useMediaQuery`).** Initialize state to `defaultMatches`
+   only (drop the `window.matchMedia` read from `useState`), then set the real
+   value in `useEffect` after mount. Server and client-initial render agree →
+   **eliminates #418/#422**. Tiny, central, low-risk. **Tradeoff:** the desktop
+   variant still appears just after hydration, so the mobile→desktop flash
+   remains — but error-free (and no worse than today, where the mismatch already
+   forces a client re-render).
+
+2. **CSS-based responsive (also removes the flash).** Render *both* variants
+   server-side and toggle with Tailwind `md:` classes (no JS viewport guess).
+   No mismatch **and** no flash — the sidebar renders correctly on first paint.
+   **Cost:** a real rewrite of the responsive primitives, renders children twice
+   (double DOM; possible double effects in the interactive accordions), touches
+   all consumers.
+
+3. **Server-accurate viewport (best result, most work).** Determine the viewport
+   server-side via a client-hint header or a JS-set cookie, so SSR renders the
+   correct branch outright. Removes mismatch and flash with no double DOM, but
+   adds a viewport-detection mechanism and a first-visit cold case.
+
+**Recommendation:** ship option 1 to clear the errors immediately, then evaluate
+option 2 as a separate UX/flash follow-up. Independent: the `favicon.ico` → 500
+(no `favicon.ico` in `dist/client`; the catch-all route 500s on it) — add the
+file or short-circuit `/favicon.ico` in `serve.mjs`.
