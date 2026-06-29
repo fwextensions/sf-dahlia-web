@@ -127,4 +127,23 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`[serve] DAHLIA app-node listening on http://${HOST}:${PORT}`)
+  warmServerDeps()
 })
+
+/**
+ * Warm server-only deps (Redis connect + dynamic imports) at boot so the first
+ * real user request doesn't pay that init latency. The TanStack Start entry
+ * (src/server.ts) strips top-level boot code in the build, so we warm here — the
+ * one place guaranteed to run at process start — by firing one lightweight
+ * internal request through the handler. The directory loader pulls in
+ * getServerDeps (Redis + Salesforce proxy), so this also pre-warms that path.
+ * Best-effort: failures are logged, never fatal. The deps are memoized, so the
+ * first user request reuses this initialization rather than racing it.
+ */
+function warmServerDeps() {
+  const url = `http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}/listings/for-rent`
+  handler
+    .fetch(new Request(url, { headers: { "x-warmup": "1" } }))
+    .then(() => console.log("[serve] server deps warmed"))
+    .catch((err) => console.error("[serve] warmup failed:", err))
+}

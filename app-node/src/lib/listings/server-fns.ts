@@ -211,7 +211,7 @@ let _serverDeps: Promise<ServerDepsType> | null = null
 async function getServerDeps(): Promise<ServerDepsType> {
   if (_serverDeps) return _serverDeps
 
-  _serverDeps = (async () => {
+  const p = (async () => {
     const { createCacheService } = await import("../cache/cache-service")
     const { createSalesforceProxyClient } = await import("../salesforce/client")
     const { withRetry } = await import("../salesforce/retry")
@@ -230,7 +230,14 @@ async function getServerDeps(): Promise<ServerDepsType> {
     }
   })()
 
-  return _serverDeps
+  // If init rejects (e.g. a dynamic import fails), clear the memo so the next
+  // call retries instead of being permanently stuck on a rejected promise.
+  p.catch(() => {
+    if (_serverDeps === p) _serverDeps = null
+  })
+
+  _serverDeps = p
+  return p
 }
 
 // ============================================================
