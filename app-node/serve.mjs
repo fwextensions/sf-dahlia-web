@@ -140,10 +140,24 @@ server.listen(PORT, HOST, () => {
  * Best-effort: failures are logged, never fatal. The deps are memoized, so the
  * first user request reuses this initialization rather than racing it.
  */
-function warmServerDeps() {
+async function warmServerDeps() {
   const url = `http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}/listings/for-rent`
-  handler
-    .fetch(new Request(url, { headers: { "x-warmup": "1" } }))
-    .then(() => console.log("[serve] server deps warmed"))
-    .catch((err) => console.error("[serve] warmup failed:", err))
+  try {
+    const webRes = await handler.fetch(new Request(url, { headers: { "x-warmup": "1" } }))
+    // Drain the body by reading it to completion (same path a real request
+    // takes via Readable.fromWeb().pipe()) so the SSR stream finishes
+    // normally instead of sitting unread until router-core's lifetime
+    // timeout force-errors it (unhandled 'error' event on the underlying
+    // Readable, crashing the process). stream.cancel() does NOT reliably
+    // clear that timer, so don't use it here.
+    if (webRes.body) {
+      const reader = webRes.body.getReader()
+      while (!(await reader.read()).done) {
+        /* drain */
+      }
+    }
+    console.log("[serve] server deps warmed")
+  } catch (err) {
+    console.error("[serve] warmup failed:", err)
+  }
 }
