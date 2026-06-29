@@ -43,48 +43,6 @@ export interface PricingData {
 }
 
 /**
- * Resolve the pricing block (units + AMI charts) for the loader.
- *
- * Uses a cache-only peek to decide hit-vs-miss deterministically:
- * - Units + every referenced AMI chart cached → return data inline (no spinner).
- * - Units cached but some AMI chart isn't → defer just the AMI fetch (units are
- *   already in hand, so don't re-fetch them).
- * - Units not cached → defer the full units→AMI fetch.
- */
-async function resolvePricing(
-  id: string,
-  unitsCached: SerializableUnit[] | null
-): Promise<PricingData | Promise<PricingData>> {
-  if (!unitsCached) {
-    // Units not cached — defer the full fetch (units, then the AMI charts they
-    // reference). Shell flushes now; this streams in behind a spinner.
-    return defer(
-      getListingUnits({ data: { id } }).then(async (units) => ({
-        units,
-        amiCharts: await getListingAmiCharts({
-          data: { charts: getAmiChartMetaDataFromUnits(units) },
-        }),
-      }))
-    )
-  }
-
-  const charts = getAmiChartMetaDataFromUnits(unitsCached)
-  const amiCached = await peekListingAmiCharts({ data: { charts } })
-  if (amiCached) {
-    // Full hit — render inline, no Suspense boundary, no spinner.
-    return { units: unitsCached, amiCharts: amiCached }
-  }
-
-  // Units cached but some AMI chart is cold — defer only the AMI fetch.
-  return defer(
-    getListingAmiCharts({ data: { charts } }).then((amiCharts) => ({
-      units: unitsCached,
-      amiCharts,
-    }))
-  )
-}
-
-/**
  * Listing-detail loader.
  *
  * Awaits only the core listing, then for each below-the-fold section does a
@@ -100,6 +58,12 @@ async function resolvePricing(
  * The peek replaces the earlier wall-clock race: a miss is detected in one
  * Redis round-trip (~20ms) instead of waiting out a fixed threshold, so cold
  * pages flush their shell sooner with no arbitrary constant to tune.
+ *
+ * IMPORTANT — never `await` a `defer()` result. `await` recursively unwraps
+ * thenables, so `await defer(p)` blocks the loader until `p` settles and
+ * silently defeats streaming (the shell waits for everything, no spinner). A
+ * deferred promise must be assigned straight to the returned property; the only
+ * things we `await` here are the peeks, which return plain data or `null`.
  */
 export async function loadListingDetail(id: string, force?: boolean) {
   const listing = await getListingDetail({ data: { id, force } })
@@ -110,9 +74,36 @@ export async function loadListingDetail(id: string, force?: boolean) {
     peekListingPreferences({ data: { id } }),
   ])
 
+  // Decide the pricing block (units + AMI charts).
+  let pricingData: PricingData | Promise<PricingData>
+  if (!unitsCached) {
+    // Units cold — defer the full units→AMI fetch. Streams in behind a spinner.
+    pricingData = defer(
+      getListingUnits({ data: { id } }).then(async (units) => ({
+        units,
+        amiCharts: await getListingAmiCharts({
+          data: { charts: getAmiChartMetaDataFromUnits(units) },
+        }),
+      }))
+    )
+  } else {
+    const charts = getAmiChartMetaDataFromUnits(unitsCached)
+    const amiCached = await peekListingAmiCharts({ data: { charts } })
+    pricingData = amiCached
+      ? // Full hit — inline, no Suspense boundary, no spinner.
+        { units: unitsCached, amiCharts: amiCached }
+      : // Units cached but some AMI chart cold — defer just the AMI fetch.
+        defer(
+          getListingAmiCharts({ data: { charts } }).then((amiCharts) => ({
+            units: unitsCached,
+            amiCharts,
+          }))
+        )
+  }
+
   return {
     listing,
-    pricingData: await resolvePricing(id, unitsCached),
+    pricingData,
     preferencesData:
       preferencesCached ?? defer(getListingPreferences({ data: { id } })),
   }
