@@ -20,6 +20,15 @@ import { fileURLToPath } from "node:url"
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const clientDir = path.join(__dirname, "dist", "client")
 
+// Prefix every log line with an ISO timestamp so log output is debuggable.
+const _log = console.log.bind(console)
+const _error = console.error.bind(console)
+const _warn = console.warn.bind(console)
+const stamp = () => new Date().toISOString()
+console.log = (...args) => _log(stamp(), ...args)
+console.error = (...args) => _error(stamp(), ...args)
+console.warn = (...args) => _warn(stamp(), ...args)
+
 const { default: handler } = await import("./dist/server/server.js")
 
 const PORT = Number(process.env.PORT ?? 3001)

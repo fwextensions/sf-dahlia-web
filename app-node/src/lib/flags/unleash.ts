@@ -109,10 +109,13 @@ export async function buildFlagsStore(): Promise<FlagsStore> {
   const now = Date.now()
   if (cache && now - cache.at < CACHE_TTL_MS) return cache.store
 
-  // Cache miss (cold start or very first request) — fetch synchronously.
-  const store = await fetchFlags()
-  cache = { at: Date.now(), store }
-  return store
+  // Cache miss — start a background fetch and return defaults immediately so
+  // no request ever blocks on the Unleash network round-trip. The background
+  // refresh already does this in steady state; we extend it to cold start too.
+  void fetchFlags().then((store) => {
+    cache = { at: Date.now(), store }
+  })
+  return { enabled: [], error: true }
 }
 
 /**
