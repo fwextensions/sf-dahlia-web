@@ -108,7 +108,9 @@ routes opt into the SSR-safe site chrome with `staticData: { nativeShell: true }
     in `serve.mjs`: TanStack Start's entry transform strips all top-level boot code
     from `src/server.ts` in the build. `getServerDeps()` is memoized (one shared
     init promise) and clears its memo on rejection so a transient init failure
-    can retry instead of poisoning the process.
+    can retry instead of poisoning the process. (This is process init only, not
+    catalog data — a scheduled Redis pre-warm of listing data is designed in
+    [`cache-prewarm-plan.md`](./cache-prewarm-plan.md).)
 - **Directory card reuse** — the native directory pages reuse the Rails
   `getListingCards` (`modules/listings/DirectoryHelpers`) for the cards (image,
   tags, status bars, stacked unit table, priority subheader), fed a per-directory

@@ -22,6 +22,18 @@ const envSchema = z.object({
   // sf-dahlia-backend messaging service (application confirmation, i2a/i2i emails)
   DAHLIA_API_URL: z.string().default(""),
   DAHLIA_API_KEY: z.string().default(""),
+  // Redis cache pre-warm job (runs on the worker dyno; see cache-prewarm-plan.md).
+  // Disabled by default so it ships dark until observed.
+  CACHE_WARM_ENABLED: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true" || v === "1"),
+  // Repeat cadence in ms. Must stay comfortably below the listing TTLs (1 day)
+  // so live keys never lapse between passes. Defaults to 6 hours.
+  CACHE_WARM_INTERVAL_MS: z.coerce.number().int().positive().default(21_600_000),
+  // Max listings warmed in parallel — the safety knob that keeps a warm pass
+  // from starving live traffic on the Rails/Salesforce path.
+  CACHE_WARM_CONCURRENCY: z.coerce.number().int().positive().default(4),
 })
 
 export type Env = z.infer<typeof envSchema>

@@ -9,7 +9,7 @@
 import { Queue, type JobsOptions } from "bullmq"
 
 import { getConnectionOptions } from "./connection"
-import type { FileAttachmentJob } from "./types"
+import type { CacheWarmJob, FileAttachmentJob } from "./types"
 
 const connection = getConnectionOptions()
 
@@ -58,4 +58,50 @@ fileAttachmentQueue.on("error", (err) => {
  */
 export async function enqueueFileAttachment(data: FileAttachmentJob) {
   return fileAttachmentQueue.add("attach", data)
+}
+
+/**
+ * Cache pre-warm queue. A warm pass is idempotent and cheap to retry, so it
+ * uses fewer attempts than file attachment and keeps only a small failure
+ * history. Failures fall through to the DLQ like any other queue.
+ */
+export const CACHE_WARM_JOB_OPTIONS: JobsOptions = {
+  attempts: 2,
+  backoff: { type: "exponential", delay: 5_000 },
+  removeOnComplete: true,
+  removeOnFail: 20,
+}
+
+/** Redis cache pre-warm queue (see processors/cache-warm.ts). */
+export const cacheWarmQueue = new Queue<CacheWarmJob>("cacheWarm", {
+  connection,
+  defaultJobOptions: CACHE_WARM_JOB_OPTIONS,
+})
+cacheWarmQueue.on("error", (err) => {
+  console.warn("[jobs] cacheWarmQueue connection error (unavailable):", err.message)
+})
+
+/** Stable scheduler id so redeploys/restarts don't stack duplicate repeatables. */
+const CACHE_WARM_SCHEDULER_ID = "cache-warm-all"
+
+/**
+ * Register the repeatable cache-warm job.
+ *
+ * - The repeatable (via `upsertJobScheduler`, keyed by a stable id) is
+ *   idempotent: calling this on every worker boot updates the schedule in place
+ *   rather than creating duplicates.
+ * - `upsertJobScheduler` with `every` produces its first job immediately on
+ *   creation, so a fresh deploy or Redis flush is covered right away without a
+ *   separate one-shot enqueue (an earlier explicit boot `add` here caused two
+ *   passes to run back-to-back at startup).
+ *
+ * Best-effort: Redis being unreachable throws here; the caller logs and
+ * continues (the worker still serves other queues, and BullMQ reconnects).
+ */
+export async function scheduleCacheWarm(everyMs: number): Promise<void> {
+  await cacheWarmQueue.upsertJobScheduler(
+    CACHE_WARM_SCHEDULER_ID,
+    { every: everyMs },
+    { name: "warm-all", data: { scope: "all" } }
+  )
 }

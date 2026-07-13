@@ -52,17 +52,36 @@ This ensures:
 
 ### Processes
 
+See `app-node/Procfile`.
+
 | Process | Command | Purpose |
 |---------|---------|---------|
-| `web` | `node .output/server/index.mjs` | TanStack Start SSR server, handles all HTTP requests |
-| `worker` | `node .output/server/worker.mjs` | BullMQ worker for async jobs (file attachments, emails) |
+| `web` | `node serve.mjs` | Zero-dep Node adapter that serves the built client assets and fronts the TanStack Start SSR `fetch` handler; handles all HTTP requests |
+| `worker` | `node --env-file-if-exists=.env --import tsx/esm src/worker.ts` | BullMQ worker for async jobs (file attachments, emails, cache warm) |
+
+> **Why `serve.mjs` and not `.output/server/index.mjs`?** The build uses the
+> plain `tanstackStart()` Vite plugin (no Nitro deployment target), so it emits a
+> Web-standard `fetch` handler at `dist/server/server.js` plus static client
+> assets in `dist/client` — **not** a runnable `.output/` Node server. `serve.mjs`
+> (~150 lines, zero deps) serves `dist/client/**` statically and falls through to
+> that `fetch` handler for SSR, server functions, and the Rails API proxy. It also
+> fires a boot-time warmup request so the first real user request doesn't pay the
+> Redis-connect + dynamic-import init cost. See the "Decision 2" record in
+> [`rails-retirement-plan.md`](./rails-retirement-plan.md).
+>
+> The **worker** is not part of the `vite build` output, so it runs from source
+> via `tsx` (a runtime dependency), not from a compiled `.mjs`. The
+> `--env-file-if-exists=.env` flag loads `app-node/.env` for local dev (Vite loads
+> it for the web server, but `tsx` does not); on Heroku there's no `.env` and the
+> flag is a no-op, so dyno config vars are used. (Requires Node >= 20.12.)
 
 ### Build
 
 The Node app uses the `heroku/nodejs` buildpack. On deploy:
 
 1. Heroku detects `package.json` and runs `npm install`
-2. The `build` script (`vite build`) compiles the TanStack Start app to `.output/`
+2. The `heroku-postbuild` script runs `vite build` (compiling the TanStack Start
+   app to `dist/`) followed by `prisma generate`
 3. The `postdeploy` script runs `npm run db:migrate` (Prisma migrations)
 
 ### Custom Domain
@@ -85,6 +104,13 @@ DNS should point to the Heroku DNS target returned by this command.
 | `CLERK_PUBLISHABLE_KEY` | Clerk client-side key | `pk_live_...` |
 | `DATABASE_URL` | Auto-set by Heroku PostgreSQL add-on | (auto) |
 | `REDIS_URL` | Auto-set by Heroku Redis add-on | (auto) |
+| `CACHE_WARM_ENABLED` | Enable the scheduled Redis cache pre-warm on the `worker` dyno | `false` (default) / `true` |
+| `CACHE_WARM_INTERVAL_MS` | Pre-warm cadence (must stay below the 1-day listing TTLs) | `21600000` (6h, default) |
+| `CACHE_WARM_CONCURRENCY` | Max listings warmed in parallel per pass | `4` (default) |
+
+> The cache pre-warm runs on the `worker` dyno (BullMQ repeatable job). It's off
+> by default; set `CACHE_WARM_ENABLED=true` to enable. See
+> [`cache-prewarm-plan.md`](./cache-prewarm-plan.md).
 
 ---
 

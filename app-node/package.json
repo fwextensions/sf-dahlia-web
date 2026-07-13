@@ -11,7 +11,7 @@
     "dev": "vite",
     "build": "vite build",
     "start": "node serve.mjs",
-    "start:worker": "tsx src/worker.ts",
+    "start:worker": "node --env-file-if-exists=.env --import tsx/esm src/worker.ts",
     "heroku-postbuild": "npm run build && npm run db:generate",
     "typecheck": "node scripts/typecheck.mjs",
     "typecheck:full": "tsc --noEmit",

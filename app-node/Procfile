@@ -1,2 +1,2 @@
-web: node .output/server/index.mjs
-worker: node --import tsx/esm src/worker.ts
+web: node serve.mjs
+worker: node --env-file-if-exists=.env --import tsx/esm src/worker.ts

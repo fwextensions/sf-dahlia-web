@@ -208,6 +208,8 @@ return resolves *before* the background fetch completes.
 
 ## Interaction with a scheduled warm job
 
+> The warm job now has its own design: [`cache-prewarm-plan.md`](./cache-prewarm-plan.md).
+
 SWR and warming are complementary:
 
 - **SWR** removes the user-facing latency of *expiry* (only the first-ever view

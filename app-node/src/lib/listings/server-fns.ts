@@ -208,7 +208,14 @@ type ServerDepsType = {
  */
 let _serverDeps: Promise<ServerDepsType> | null = null
 
-async function getServerDeps(): Promise<ServerDepsType> {
+/**
+ * Resolved server-only dependencies. Exported so non-request server code (e.g.
+ * the BullMQ cache-warm worker) can build the same cache/proxy/retry stack the
+ * server fns use, and pass it into the extracted `fetch*` core functions below.
+ */
+export type ServerDeps = ServerDepsType
+
+export async function getServerDeps(): Promise<ServerDepsType> {
   if (_serverDeps) return _serverDeps
 
   const p = (async () => {
@@ -248,12 +255,13 @@ async function getServerDeps(): Promise<ServerDepsType> {
  * Fetches listings for directory pages (RentDirectory, BuyDirectory).
  * Integrates caching and retry logic.
  */
-export const getListings = createServerFn({ method: "GET" })
-  .validator((data: ListingsInput) => data)
-  .handler(async ({ data }): Promise<ListingsLoaderData> => {
-    const { cacheService, proxyClient, withRetry } = await getServerDeps()
+export async function fetchListings(
+  data: ListingsInput,
+  deps?: ServerDeps
+): Promise<ListingsLoaderData> {
+  const { cacheService, proxyClient, withRetry } = deps ?? (await getServerDeps())
 
-    try {
+  try {
       const fetchParams: ListingsParams = {
         ...data.params,
         type: data.type,
@@ -285,7 +293,15 @@ export const getListings = createServerFn({ method: "GET" })
       console.error("[getListings] Failed to fetch listings:", err)
       throw err
     }
-  })
+}
+
+/**
+ * Fetches listings for directory pages (RentDirectory, BuyDirectory).
+ * Integrates caching and retry logic.
+ */
+export const getListings = createServerFn({ method: "GET" })
+  .validator((data: ListingsInput) => data)
+  .handler(({ data }): Promise<ListingsLoaderData> => fetchListings(data))
 
 // ============================================================
 // Server Function: getListingDetail
@@ -295,27 +311,36 @@ export const getListings = createServerFn({ method: "GET" })
  * Fetches a single listing by ID.
  * Used by the ListingDetail page.
  */
+export async function fetchListingDetail(
+  data: ListingDetailInput,
+  deps?: ServerDeps
+): Promise<SerializableListing> {
+  const { cacheService, proxyClient, withRetry } = deps ?? (await getServerDeps())
+
+  const endpoint = `/api/v1/listings/${data.id}`
+  const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
+
+  return cacheService.cachedGet<SerializableListing>(
+    endpoint,
+    undefined,
+    data.force ?? false,
+    async () => {
+      const result = await withRetry(
+        () => proxyClient.listings.getById(data.id, data.force),
+        { cacheService, cacheKey }
+      )
+      return { data: result as unknown as SerializableListing, status: 200 }
+    }
+  )
+}
+
+/**
+ * Fetches a single listing by ID.
+ * Used by the ListingDetail page.
+ */
 export const getListingDetail = createServerFn({ method: "GET" })
   .validator((data: ListingDetailInput) => data)
-  .handler(async ({ data }): Promise<SerializableListing> => {
-    const { cacheService, proxyClient, withRetry } = await getServerDeps()
-
-    const endpoint = `/api/v1/listings/${data.id}`
-    const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
-
-    return cacheService.cachedGet<SerializableListing>(
-      endpoint,
-      undefined,
-      data.force ?? false,
-      async () => {
-        const result = await withRetry(
-          () => proxyClient.listings.getById(data.id, data.force),
-          { cacheService, cacheKey }
-        )
-        return { data: result as unknown as SerializableListing, status: 200 }
-      }
-    )
-  })
+  .handler(({ data }): Promise<SerializableListing> => fetchListingDetail(data))
 
 // ============================================================
 // Server Function: getListingUnits
@@ -324,27 +349,35 @@ export const getListingDetail = createServerFn({ method: "GET" })
 /**
  * Fetches units for a specific listing.
  */
+export async function fetchListingUnits(
+  data: ListingByIdInput,
+  deps?: ServerDeps
+): Promise<SerializableUnit[]> {
+  const { cacheService, proxyClient, withRetry } = deps ?? (await getServerDeps())
+
+  const endpoint = `/api/v1/listings/${data.id}/units`
+  const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
+
+  return cacheService.cachedGet<SerializableUnit[]>(
+    endpoint,
+    undefined,
+    false,
+    async () => {
+      const result = await withRetry(
+        () => proxyClient.listings.getUnits(data.id),
+        { cacheService, cacheKey }
+      )
+      return { data: result as unknown as SerializableUnit[], status: 200 }
+    }
+  )
+}
+
+/**
+ * Fetches units for a specific listing.
+ */
 export const getListingUnits = createServerFn({ method: "GET" })
   .validator((data: ListingByIdInput) => data)
-  .handler(async ({ data }): Promise<SerializableUnit[]> => {
-    const { cacheService, proxyClient, withRetry } = await getServerDeps()
-
-    const endpoint = `/api/v1/listings/${data.id}/units`
-    const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
-
-    return cacheService.cachedGet<SerializableUnit[]>(
-      endpoint,
-      undefined,
-      false,
-      async () => {
-        const result = await withRetry(
-          () => proxyClient.listings.getUnits(data.id),
-          { cacheService, cacheKey }
-        )
-        return { data: result as unknown as SerializableUnit[], status: 200 }
-      }
-    )
-  })
+  .handler(({ data }): Promise<SerializableUnit[]> => fetchListingUnits(data))
 
 /**
  * Cache-only peek for a listing's units: a single Redis GET that never triggers
@@ -369,27 +402,37 @@ export const peekListingUnits = createServerFn({ method: "GET" })
 /**
  * Fetches preferences for a specific listing.
  */
+export async function fetchListingPreferences(
+  data: ListingByIdInput,
+  deps?: ServerDeps
+): Promise<SerializablePreference[]> {
+  const { cacheService, proxyClient, withRetry } = deps ?? (await getServerDeps())
+
+  const endpoint = `/api/v1/listings/${data.id}/preferences`
+  const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
+
+  return cacheService.cachedGet<SerializablePreference[]>(
+    endpoint,
+    undefined,
+    false,
+    async () => {
+      const result = await withRetry(
+        () => proxyClient.listings.getPreferences(data.id),
+        { cacheService, cacheKey }
+      )
+      return { data: result as unknown as SerializablePreference[], status: 200 }
+    }
+  )
+}
+
+/**
+ * Fetches preferences for a specific listing.
+ */
 export const getListingPreferences = createServerFn({ method: "GET" })
   .validator((data: ListingByIdInput) => data)
-  .handler(async ({ data }): Promise<SerializablePreference[]> => {
-    const { cacheService, proxyClient, withRetry } = await getServerDeps()
-
-    const endpoint = `/api/v1/listings/${data.id}/preferences`
-    const cacheKey = cacheService.generateCacheKey(endpoint, undefined)
-
-    return cacheService.cachedGet<SerializablePreference[]>(
-      endpoint,
-      undefined,
-      false,
-      async () => {
-        const result = await withRetry(
-          () => proxyClient.listings.getPreferences(data.id),
-          { cacheService, cacheKey }
-        )
-        return { data: result as unknown as SerializablePreference[], status: 200 }
-      }
-    )
-  })
+  .handler(({ data }): Promise<SerializablePreference[]> =>
+    fetchListingPreferences(data)
+  )
 
 /**
  * Cache-only peek for a listing's preferences (see peekListingUnits). Returns
@@ -529,10 +572,6 @@ export const getListingAmiCharts = createServerFn({ method: "GET" })
   .handler(({ data }): Promise<SerializableAmiChart[]> =>
     resolveAmiChartsCached(data.charts)
   )
-
-/** Dependencies resolved by getServerDeps; broken out so the AMI cache logic
- *  below can be unit-tested with fakes (createServerFn handlers can't). */
-type ServerDeps = Awaited<ReturnType<typeof getServerDeps>>
 
 /**
  * Per-chart-cached resolution for getListingAmiCharts (see that fn's docs).

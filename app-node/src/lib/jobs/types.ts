@@ -24,4 +24,13 @@ export interface FileAttachmentJob {
   files: UploadedFile[]
 }
 
-export type JobType = "fileAttachment"
+/**
+ * Redis cache pre-warm job. `scope: "all"` walks the full listing catalog
+ * (both directories + every listing's detail/units/preferences/AMI). See
+ * `processCacheWarm` and docs/cache-prewarm-plan.md.
+ */
+export interface CacheWarmJob {
+  scope: "all"
+}
+
+export type JobType = "fileAttachment" | "cacheWarm"

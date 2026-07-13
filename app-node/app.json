@@ -57,6 +57,19 @@
     "REDIS_URL": {
       "description": "Redis connection URL (auto-set by Heroku add-on)",
       "required": true
+    },
+    "CACHE_WARM_ENABLED": {
+      "description": "Enable the scheduled Redis cache pre-warm on the worker dyno (\"true\"/\"1\"). See docs/cache-prewarm-plan.md.",
+      "required": false,
+      "value": "false"
+    },
+    "CACHE_WARM_INTERVAL_MS": {
+      "description": "Cache pre-warm repeat cadence in ms; must stay below the listing TTLs (1 day). Defaults to 6h.",
+      "required": false
+    },
+    "CACHE_WARM_CONCURRENCY": {
+      "description": "Max listings warmed in parallel per pass. Defaults to 4.",
+      "required": false
     }
   },
   "scripts": {
