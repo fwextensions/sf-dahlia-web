@@ -86,6 +86,8 @@ describe("formApiService", () => {
             dob: "1990-01-01",
           },
           householdMembers: [],
+          // no listing preferences were passed, so there is nothing to claim
+          shortFormPreferences: [],
           adaPrioritiesSelected: "None;",
           formMetadata: "{}",
           applicationSubmittedDate: today,

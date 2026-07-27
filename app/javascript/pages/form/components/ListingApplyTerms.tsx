@@ -10,10 +10,10 @@ const ListingApplyTerms = () => {
   const {
     handlePrevStep,
     formData,
-    staticData: { listing },
+    staticData: { listing, preferences },
   } = formEngineContext
   const handleSubmit = () => {
-    submitForm(formData, listing.listingID)
+    submitForm(formData, listing.listingID, preferences)
       .then(() => {
         window.alert("Submitted short form application.")
       })

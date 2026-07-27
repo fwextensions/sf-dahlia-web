@@ -2,6 +2,7 @@ import { AxiosResponse } from "axios"
 import { post, apiDelete } from "./apiService"
 import { getCurrentLanguage } from "../util/languageUtil"
 import { Application } from "./types/rails/application/RailsApplication"
+import { RailsListingPreference } from "./types/rails/listings/RailsListingPreferences"
 import { formDataToApplication } from "../util/applicationTransforms"
 
 type UploadProofFileResponse = {
@@ -114,10 +115,13 @@ export enum LanguagePrefix {
 
 export const submitForm = async (
   formData: Record<string, unknown>,
-  listingId: string
+  listingId: string,
+  // preferences are keyed by the listing's own preference records, so the
+  // transform needs them to build shortFormPreferences (DAH-3677)
+  listingPreferences?: RailsListingPreference[]
 ): Promise<Record<string, unknown>> => {
   const applicationData: Partial<Application> = {
-    ...formDataToApplication(formData),
+    ...formDataToApplication(formData, { listingPreferences }),
     listingID: listingId,
     applicationLanguage: LanguagePrefix[getCurrentLanguage()],
     status: "Submitted",
