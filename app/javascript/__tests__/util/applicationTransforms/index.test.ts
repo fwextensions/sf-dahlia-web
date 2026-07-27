@@ -1,3 +1,5 @@
+import { type RailsListingPreference } from "../../../api/types/rails/listings/RailsListingPreferences"
+import { PREFERENCES } from "../../../modules/constants"
 import {
   applicationToFormData,
   formDataToApplication,
@@ -146,6 +148,63 @@ describe("applicationTransforms", () => {
         alternateContactLastName: "",
       })
       expect(application.alternateContact).toBeUndefined()
+    })
+  })
+
+  describe("veterans and preferences", () => {
+    const liveWork = {
+      preferenceName: PREFERENCES.liveWorkInSf,
+      listingPreferenceID: "lp-live-work",
+    } as RailsListingPreference
+
+    it("stamps the veteran answer onto the members rather than the preferences", () => {
+      const application = formDataToApplication({
+        ...formData,
+        _isAnyoneAVeteran: "yes",
+        _veteranMemberId: "primaryApplicant",
+      })
+      expect(application.primaryApplicant).toMatchObject({ isVeteran: "Yes" })
+      expect(application.householdMembers[0]).toMatchObject({ isVeteran: null })
+      expect(application.shortFormPreferences).toEqual([])
+    })
+
+    it("builds shortFormPreferences from the listing's preferences", () => {
+      const application = formDataToApplication(
+        {
+          ...formData,
+          claimedPreferences: {
+            liveInSf: { preferenceClaimed: true, householdMemberId: "primaryApplicant" },
+          },
+        },
+        { listingPreferences: [liveWork] }
+      )
+      expect(application.shortFormPreferences).toMatchObject([
+        { listingPreferenceID: "lp-live-work", individualPreference: "Live in SF" },
+      ])
+    })
+
+    it("round-trips a claimed preference and the veteran answer together", () => {
+      const source = {
+        ...formData,
+        _isAnyoneAVeteran: "yes",
+        _veteranMemberId: "primaryApplicant",
+        claimedPreferences: {
+          liveInSf: { preferenceClaimed: true, householdMemberId: "primaryApplicant" },
+        },
+      }
+      const context = { listingPreferences: [liveWork] }
+      const restored = applicationToFormData(formDataToApplication(source, context), context)
+
+      expect(restored._isAnyoneAVeteran).toBe("yes")
+      expect(restored._veteranMemberId).toBe("primaryApplicant")
+      expect(restored.claimedPreferences).toEqual(source.claimedPreferences)
+    })
+
+    it("sends no preferences and no veteran answer when neither was asked", () => {
+      const application = formDataToApplication(formData)
+      expect(application.shortFormPreferences).toEqual([])
+      expect(application.primaryApplicant).not.toHaveProperty("isVeteran")
+      expect(application).not.toHaveProperty("isNonPrimaryMemberVeteran")
     })
   })
 
